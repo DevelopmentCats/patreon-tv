@@ -1,0 +1,50 @@
+name: site
+
+on:
+  push:
+    branches: [main, "scaffold/**", "feature/**"]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "site/**"
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        working-directory: site
+        run: npm ci
+
+      - name: Type-check
+        working-directory: site
+        run: npm run check --if-present || true
+        # `check` requires the language server which may not fully work in CI.
+        # We treat it as advisory for now — build is the real gate.
+
+      - name: Build
+        working-directory: site
+        run: npm run build
+
+      - name: Confirm key files exist in dist
+        working-directory: site
+        run: |
+          test -f dist/client/robots.txt
+          test -f dist/client/favicon.svg
+          test -f dist/client/.well-known/apple-app-site-association
+          test -f dist/client/_headers
+          echo "All expected static files present in dist/client/"

@@ -96,11 +96,13 @@ struct PostDetailView: View {
                 }
 
                 if let content = post.attributes.content, !content.isEmpty {
-                    // Content is HTML — for MVP we strip tags and show plaintext.
-                    Text(HTMLRenderer.stripToPlainText(content))
+                    // Content is HTML — convert to AttributedString so links,
+                    // bold, italic, and lists render properly.
+                    Text(HTMLRenderer.attributedString(from: content))
                         .font(.body)
                         .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
                         .padding(.horizontal, 60)
+                        .frame(maxWidth: 1400, alignment: .leading)
                 }
 
                 Spacer(minLength: 60)

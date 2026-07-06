@@ -1,0 +1,94 @@
+---
+// src/pages/index.astro
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="PatreonTV">
+  <section style="text-align: center; padding: 80px 0 40px;">
+    <h1>Watch your Patreon on Apple&nbsp;TV.</h1>
+    <p
+      style="font-size: 1.25rem; max-width: 640px; margin: 0 auto 40px; color: var(--text-muted);"
+    >
+      A native tvOS app for the creators you already support. Sign in once,
+      lean back, and press play.
+    </p>
+    <div
+      style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;"
+    >
+      <a class="btn" href="#coming-soon">Coming to the App Store</a>
+      <a class="btn secondary" href="/support">Learn more</a>
+    </div>
+  </section>
+
+  <section style="margin-top: 80px;">
+    <div
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;"
+    >
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Netflix-style browsing</h3>
+        <p style="margin-bottom: 0;">
+          Focus-driven shelves, hero art that follows what you're looking at,
+          snappy transitions built with the native tvOS focus engine.
+        </p>
+      </div>
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Native video</h3>
+        <p style="margin-bottom: 0;">
+          Patreon-hosted video plays directly in AVPlayer. HDR, Picture in
+          Picture, AirPlay, subtitles — all supported out of the box.
+        </p>
+      </div>
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Continue watching</h3>
+        <p style="margin-bottom: 0;">
+          Pick up where you left off across sessions. Playback progress is
+          saved on-device — nothing sent to a third party.
+        </p>
+      </div>
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Top Shelf integration</h3>
+        <p style="margin-bottom: 0;">
+          Recent posts from your creators appear on the Apple TV home screen.
+          One press to jump straight to a video.
+        </p>
+      </div>
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Yours alone</h3>
+        <p style="margin-bottom: 0;">
+          Your Patreon session lives in the tvOS Keychain on your Apple TV.
+          No server holds your data. No analytics on what you watch.
+        </p>
+      </div>
+      <div
+        style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px;"
+      >
+        <h3 style="margin-top: 0;">Open source</h3>
+        <p style="margin-bottom: 0;">
+          MIT licensed, built with SwiftUI, developed in the open. Read the
+          code, file bugs, or contribute.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="coming-soon" style="margin-top: 100px; text-align: center;">
+    <h2>Coming soon</h2>
+    <p style="margin: 0 auto 32px;">
+      PatreonTV is in active development. TestFlight beta signups will open
+      when we're a little closer to shipping.
+    </p>
+    <p style="color: var(--text-dim); font-size: 0.9rem;">
+      This site is a placeholder. Watch this space.
+    </p>
+  </section>
+</Base>

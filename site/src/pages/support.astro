@@ -1,0 +1,89 @@
+---
+// src/pages/support.astro
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Support"
+  description="Get help with PatreonTV — FAQ, common issues, and contact."
+>
+  <h1>Support</h1>
+  <p>
+    PatreonTV is early-stage and open-source. If you hit something
+    unexpected, we'd like to hear about it.
+  </p>
+
+  <h2>Common questions</h2>
+
+  <h3>How do I sign in?</h3>
+  <p>
+    On first launch, PatreonTV opens Patreon's login page in an in-app
+    browser. Sign in as you normally would on patreon.com. Once your
+    session is captured, you're returned to the app and it stays signed
+    in on your Apple TV.
+  </p>
+
+  <h3>Why can't I see a post I know I paid for?</h3>
+  <p>
+    Make sure you're signed into the same Patreon account that has the
+    membership. Some paywalled content requires you to sign in via the
+    in-app browser (not just enter credentials in a form). If a specific
+    post still doesn't appear, try force-quitting and reopening the app.
+  </p>
+
+  <h3>A video won't play. What now?</h3>
+  <p>
+    Try these in order:
+  </p>
+  <ul>
+    <li>Sign out and back in from <strong>Settings → Sign Out</strong>.</li>
+    <li>
+      If the post uses a YouTube or Vimeo embed, PatreonTV can't play it
+      in-app — you'll see a "Watch on…" prompt to open the original service.
+    </li>
+    <li>
+      If the video is Patreon-hosted and still fails, please email us
+      (below) with the post title and creator name so we can investigate.
+    </li>
+  </ul>
+
+  <h3>Is my Patreon password stored on your servers?</h3>
+  <p>
+    No. PatreonTV has no servers. Your password is typed into Patreon's
+    own website inside an in-app browser and never seen by our code. The
+    session cookie Patreon issues is stored in the tvOS Keychain on your
+    Apple TV. See our <a href="/privacy">privacy policy</a> for details.
+  </p>
+
+  <h3>Does watching in PatreonTV support the creator?</h3>
+  <p>
+    You continue to support the creator through your existing Patreon
+    membership — PatreonTV doesn't change that in either direction. To
+    upgrade a tier or start a new membership, visit patreon.com or the
+    official Patreon app.
+  </p>
+
+  <h3>Can I use PatreonTV without an Apple TV?</h3>
+  <p>
+    PatreonTV is Apple TV only. There is no iPhone, iPad, Mac, Android,
+    Fire TV, or Roku version.
+  </p>
+
+  <h2>Reporting an issue</h2>
+  <p>
+    We track bugs and feature requests on GitHub. If you're comfortable
+    filing there:
+    <a
+      href="https://github.com/DevelopmentCats/patreon-tv/issues"
+      rel="noopener">github.com/DevelopmentCats/patreon-tv/issues</a>.
+    Include your Apple TV model, tvOS version, and steps to reproduce.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    For anything not covered above — including privacy or security
+    concerns — email
+    <a href="mailto:[email protected]">[email protected]</a>.
+    We aim to reply within a few business days.
+  </p>
+</Base>

@@ -1,0 +1,11 @@
+name = "patreon-tv"
+compatibility_date = "2026-06-01"
+pages_build_output_dir = "./dist"
+
+# Cloudflare Pages preview builds live at patreon-tv.pages.dev
+# Production custom domain (once you attach it): patreontv.app
+
+# Environment variables (set via the Cloudflare dashboard, NOT here)
+# ------------------------------------------------------------------
+# CONTACT_EMAIL           — support email shown on /contact
+# PATREON_LOGIN_ORIGIN    — reserved for future pairing service (unused today)

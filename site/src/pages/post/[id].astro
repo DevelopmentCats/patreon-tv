@@ -1,0 +1,56 @@
+---
+// src/pages/post/[id].astro
+//
+// Deep-link fallback. When someone taps a `patreontv://post/<id>` link on
+// a device without the app, or a `https://patreontv.app/post/<id>` link
+// anywhere, this page shows a friendly redirect card.
+//
+// If the Apple TV app is installed, we attempt to hand off via the custom
+// scheme. Otherwise we point at the App Store (once it exists) and offer
+// the original patreon.com URL as a fallback.
+
+import Base from "../../layouts/Base.astro";
+
+export const prerender = false;
+
+const { id } = Astro.params;
+if (!id || !/^\d+$/.test(id)) {
+  return Astro.redirect("/", 302);
+}
+
+const deepLink = `patreontv://post/${id}`;
+const patreonURL = `https://www.patreon.com/posts/${id}`;
+---
+
+<Base
+  title="Open this post"
+  description="Open this post in PatreonTV or on patreon.com."
+>
+  <div style="text-align: center; padding: 40px 0;">
+    <h1>Open this post</h1>
+    <p style="max-width: 480px; margin: 0 auto 40px;">
+      If PatreonTV is installed on your Apple TV, tap Open. Otherwise you
+      can view this post on patreon.com.
+    </p>
+
+    <div
+      style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;"
+    >
+      <a class="btn" href={deepLink}>Open in PatreonTV</a>
+      <a class="btn secondary" href={patreonURL} rel="noopener">
+        View on Patreon
+      </a>
+    </div>
+
+    <p style="margin-top: 60px; color: var(--text-dim); font-size: 0.9rem;">
+      Don't have PatreonTV yet?
+      <a href="/">Learn more</a>.
+    </p>
+  </div>
+
+  <!--
+    Intentionally NOT auto-redirecting via JS. Auto-opening a custom URL
+    scheme on iOS/macOS produces an ugly "Cannot Open Page" dialog if the
+    app isn't installed. Leaving the choice to the user is friendlier.
+  -->
+</Base>

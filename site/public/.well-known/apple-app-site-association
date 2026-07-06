@@ -1,0 +1,23 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.patreontv.PatreonTV"],
+        "components": [
+          {
+            "/": "/post/*",
+            "comment": "Universal link into post detail. Requires Team ID."
+          },
+          {
+            "/": "/creator/*",
+            "comment": "Universal link into creator detail. Requires Team ID."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": []
+  }
+}

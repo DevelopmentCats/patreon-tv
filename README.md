@@ -16,6 +16,7 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 ```
 patreon-tv/
 ├── apps/tvos/          The Apple TV app (SwiftUI, tvOS 17+, XcodeGen)
+├── site/               Marketing + legal + deep-link fallback (Astro → Cloudflare Pages)
 ├── services/pairing/   OPTIONAL push/notifications service — not required for v1
 ├── harness/            Node scripts for live-testing the Patreon API
 ├── docs/               User-facing docs (WIP)

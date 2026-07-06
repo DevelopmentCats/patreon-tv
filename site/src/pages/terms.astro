@@ -1,0 +1,104 @@
+---
+// src/pages/terms.astro
+import Base from "../layouts/Base.astro";
+
+const lastUpdated = "July 6, 2026";
+---
+
+<Base
+  title="Terms of Service"
+  description="The terms you agree to when using PatreonTV."
+>
+  <h1>Terms of Service</h1>
+  <p style="color: var(--text-dim);">Last updated: {lastUpdated}</p>
+
+  <h2>Who we are</h2>
+  <p>
+    PatreonTV is an independent, open-source Apple TV client for viewing
+    Patreon content you already have access to. We are not affiliated
+    with, endorsed by, or sponsored by Patreon Inc.
+  </p>
+
+  <h2>The service</h2>
+  <p>
+    PatreonTV is provided as a native tvOS application. It is a
+    <strong>viewer</strong> for content on your Patreon account — it
+    does not itself host, sell, or distribute the content of any
+    creator. All content viewed through PatreonTV remains subject to
+    Patreon's own Terms of Use and the individual creators' terms.
+  </p>
+
+  <h2>Your Patreon account</h2>
+  <p>
+    You must have a Patreon account to use PatreonTV. Your login happens
+    directly with patreon.com through an in-app secure browser. We never
+    see your password. Your session cookie is stored in the tvOS Keychain
+    on your Apple TV and used to authenticate requests to Patreon on
+    your behalf.
+  </p>
+
+  <h2>Acceptable use</h2>
+  <p>You agree not to:</p>
+  <ul>
+    <li>
+      Attempt to circumvent Patreon's paywall or view content you have not
+      paid to access.
+    </li>
+    <li>
+      Redistribute, rebroadcast, or otherwise re-publish content viewed
+      through PatreonTV. The license you receive as a paying patron is for
+      your own private, personal, non-commercial viewing.
+    </li>
+    <li>
+      Reverse-engineer, decompile, or attempt to derive the source code of
+      PatreonTV in ways that violate its MIT license.
+    </li>
+    <li>Use PatreonTV in a way that violates Patreon's own Terms of Use.</li>
+  </ul>
+
+  <h2>Payments</h2>
+  <p>
+    PatreonTV is free. It does not process payments and does not sell
+    subscriptions or memberships. To join a creator's tier or change your
+    pledge, use Patreon's website or their official iOS app, subject to
+    the applicable Apple in-app purchase rules where they apply.
+  </p>
+
+  <h2>Availability & changes</h2>
+  <p>
+    PatreonTV depends on Patreon's own systems to function. If Patreon
+    changes its API, blocks third-party clients, or is otherwise
+    unavailable, PatreonTV may not work as expected. We may release
+    updates, change features, or discontinue the app at our discretion.
+  </p>
+
+  <h2>Disclaimer</h2>
+  <p>
+    PatreonTV is provided <strong>as is, without warranty of any kind</strong>,
+    express or implied, including but not limited to the warranties of
+    merchantability, fitness for a particular purpose, and
+    non-infringement. We do not warrant that the app will be uninterrupted,
+    error-free, or that any content will be available.
+  </p>
+
+  <h2>Limitation of liability</h2>
+  <p>
+    To the maximum extent permitted by law, in no event will PatreonTV or
+    its contributors be liable for any indirect, incidental, special,
+    consequential, or punitive damages arising out of or related to your
+    use of the app.
+  </p>
+
+  <h2>Governing law</h2>
+  <p>
+    These terms are governed by the laws of the United States. Disputes
+    that cannot be resolved informally will be handled in the state or
+    federal courts located there.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about these terms? Reach us at
+    <a href="/support">support</a>.
+  </p>
+</Base>

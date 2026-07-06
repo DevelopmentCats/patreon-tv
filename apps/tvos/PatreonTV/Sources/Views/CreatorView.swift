@@ -201,25 +201,6 @@ final class CreatorViewModel {
     }
 }
 
-// Split out for testability + reuse.
-enum HTMLRenderer {
-    /// Trivial tag-stripper for MVP. A proper AttributedString renderer lives
-    /// in HTMLRenderer.markdown(from:) below.
-    static func stripToPlainText(_ html: String) -> String {
-        var s = html
-        s = s.replacingOccurrences(of: "<br>", with: "\n")
-        s = s.replacingOccurrences(of: "<br/>", with: "\n")
-        s = s.replacingOccurrences(of: "<br />", with: "\n")
-        s = s.replacingOccurrences(of: "</p>", with: "\n\n")
-        s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        s = s.replacingOccurrences(of: "&nbsp;", with: " ")
-        s = s.replacingOccurrences(of: "&amp;", with: "&")
-        s = s.replacingOccurrences(of: "&lt;", with: "<")
-        s = s.replacingOccurrences(of: "&gt;", with: ">")
-        s = s.replacingOccurrences(of: "&quot;", with: "\"")
-        s = s.replacingOccurrences(of: "&#39;", with: "'")
-        return s.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
+// (HTMLRenderer moved to Services/HTMLRenderer.swift)
 
 // os.Logger reference cleanup: use plain Logger since we imported os.

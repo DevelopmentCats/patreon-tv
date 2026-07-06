@@ -1,0 +1,100 @@
+---
+// src/pages/privacy.astro
+import Base from "../layouts/Base.astro";
+
+const lastUpdated = "July 6, 2026";
+---
+
+<Base
+  title="Privacy Policy"
+  description="How PatreonTV handles your data. Short version: it doesn't."
+>
+  <h1>Privacy Policy</h1>
+  <p style="color: var(--text-dim);">Last updated: {lastUpdated}</p>
+
+  <h2>The short version</h2>
+  <p>
+    PatreonTV is a native Apple TV app that talks directly to Patreon. It
+    does not have a backend server. It does not send your data to us. It
+    does not collect analytics on what you watch.
+  </p>
+
+  <h2>What data PatreonTV touches</h2>
+
+  <h3>Your Patreon session</h3>
+  <p>
+    When you sign in through the in-app browser, Patreon issues a session
+    cookie. That cookie is stored in the tvOS Keychain on your Apple TV.
+    It never leaves your device except when the app calls the Patreon API
+    on your behalf.
+  </p>
+
+  <h3>Data fetched from Patreon</h3>
+  <p>
+    While you use the app, PatreonTV requests posts, creator information,
+    memberships, and media URLs from patreon.com. This data is displayed on
+    your Apple TV and held only in memory or in an on-device cache for
+    performance. It is not shared with any third party.
+  </p>
+
+  <h3>Playback progress</h3>
+  <p>
+    Playback position for videos you watch is stored on-device using tvOS
+    <code>UserDefaults</code>. This powers the "Continue Watching" shelf
+    and never leaves your Apple TV.
+  </p>
+
+  <h3>Media playback</h3>
+  <p>
+    Patreon-hosted video is streamed from Patreon's video hosting provider
+    (currently Mux). Playback URLs are signed by Patreon and delivered
+    directly to your Apple TV; PatreonTV does not proxy or intercept the
+    stream. Mux may collect standard streaming diagnostics as described in
+    <a href="https://www.mux.com/privacy" rel="noopener">Mux's privacy policy</a>.
+  </p>
+
+  <h3>External embeds</h3>
+  <p>
+    Posts containing YouTube or Vimeo embeds link out to those services.
+    When you open one of those posts, PatreonTV does not stream the
+    content itself; if you choose to watch, the relevant third-party app
+    is opened. Their own privacy policies apply once you leave PatreonTV.
+  </p>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>We do not operate a server that stores your data.</li>
+    <li>We do not track which posts you view, watch, or interact with.</li>
+    <li>We do not use analytics SDKs, advertising SDKs, or tracking pixels.</li>
+    <li>
+      We do not sell, share, or rent your data — because we don't have your
+      data.
+    </li>
+  </ul>
+
+  <h2>Crash reports</h2>
+  <p>
+    If PatreonTV crashes and you have opted in to sharing diagnostic data
+    with Apple, Apple may deliver an anonymized crash report to us via
+    App Store Connect. These reports contain no personal information and
+    no Patreon session data.
+  </p>
+
+  <h2>Children</h2>
+  <p>
+    PatreonTV is not directed at children under 13. NSFW-marked Patreon
+    campaigns are filtered from the app.
+  </p>
+
+  <h2>Changes</h2>
+  <p>
+    If this policy changes, the "Last updated" date at the top will change
+    and — for meaningful changes — we'll surface a notice in the app.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about privacy? Reach us at
+    <a href="/support">support</a>.
+  </p>
+</Base>
