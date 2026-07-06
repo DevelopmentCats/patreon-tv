@@ -30,12 +30,6 @@ jobs:
         working-directory: site
         run: npm ci
 
-      - name: Type-check
-        working-directory: site
-        run: npm run check --if-present || true
-        # `check` requires the language server which may not fully work in CI.
-        # We treat it as advisory for now — build is the real gate.
-
       - name: Build
         working-directory: site
         run: npm run build
@@ -43,8 +37,15 @@ jobs:
       - name: Confirm key files exist in dist
         working-directory: site
         run: |
-          test -f dist/client/robots.txt
-          test -f dist/client/favicon.svg
-          test -f dist/client/.well-known/apple-app-site-association
-          test -f dist/client/_headers
-          echo "All expected static files present in dist/client/"
+          test -f dist/index.html
+          test -f dist/privacy/index.html
+          test -f dist/terms/index.html
+          test -f dist/support/index.html
+          test -f dist/post/index.html
+          test -f dist/creator/index.html
+          test -f dist/robots.txt
+          test -f dist/favicon.svg
+          test -f dist/_headers
+          test -f dist/_redirects
+          test -f dist/.well-known/apple-app-site-association
+          echo "All expected files present in dist/"

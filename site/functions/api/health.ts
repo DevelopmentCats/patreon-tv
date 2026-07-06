@@ -1,10 +1,8 @@
-// src/pages/api/health.ts
+// functions/api/health.ts
 //
-// Simple health endpoint for uptime monitoring. Returns JSON.
+// Simple health endpoint for uptime monitoring. Cloudflare Pages Function.
 
-export const prerender = false;
-
-export async function GET() {
+export const onRequestGet: PagesFunction = async () => {
   return new Response(
     JSON.stringify({
       status: "ok",
@@ -16,6 +14,6 @@ export async function GET() {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
       },
-    }
+    },
   );
-}
+};

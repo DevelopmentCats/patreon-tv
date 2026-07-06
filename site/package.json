@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Marketing + legal + deep-link fallback site for PatreonTV. Deploys to Cloudflare Pages.",
+  "description": "Marketing + legal + deep-link fallback site for PatreonTV. Deploys to Cloudflare Pages as pure static + Pages Functions.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
-    "@astrojs/cloudflare": "^14.1.1",
     "astro": "^7.0.6",
     "typescript": "^5.7.2"
   },
