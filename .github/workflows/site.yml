@@ -2,7 +2,7 @@ name: site
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**"]
+    branches: [main, "scaffold/**", "feature/**", "fix/**"]
     paths:
       - "site/**"
       - ".github/workflows/site.yml"
@@ -37,15 +37,23 @@ jobs:
       - name: Confirm key files exist in dist
         working-directory: site
         run: |
+          # Static pages
           test -f dist/index.html
           test -f dist/privacy/index.html
           test -f dist/terms/index.html
           test -f dist/support/index.html
-          test -f dist/post/index.html
-          test -f dist/creator/index.html
+          # Static assets
           test -f dist/robots.txt
           test -f dist/favicon.svg
           test -f dist/_headers
-          test -f dist/_redirects
           test -f dist/.well-known/apple-app-site-association
-          echo "All expected files present in dist/"
+          echo "Static build output OK"
+
+      - name: Confirm Pages Functions exist
+        working-directory: site
+        run: |
+          test -f functions/api/health.ts
+          test -f functions/post/[id].ts
+          test -f functions/creator/[id].ts
+          test -f functions/_lib/renderShareFallback.ts
+          echo "Pages Functions present"
