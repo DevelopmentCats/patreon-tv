@@ -1,0 +1,45 @@
+name: harness
+
+on:
+  push:
+    branches: [main, "scaffold/**", "feature/**"]
+    paths:
+      - "harness/**"
+      - ".github/workflows/harness.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "harness/**"
+
+jobs:
+  syntax-check:
+    name: Node syntax + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: harness/package-lock.json
+
+      - name: Install
+        working-directory: harness
+        run: npm ci || npm install
+
+      - name: Syntax check
+        working-directory: harness
+        run: |
+          node --check auth-server.js
+          node --check probe.js
+
+      - name: Missing-env boot check
+        working-directory: harness
+        run: |
+          # auth-server should exit non-zero when creds are absent, with a clear error.
+          out=$(node auth-server.js fan 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "PATREON_CLIENT_ID" || (echo "expected env-error message" && exit 1)

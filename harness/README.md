@@ -2,7 +2,21 @@
 
 A tiny, no-magic OAuth + probe rig. Uses only Node stdlib + `dotenv`.
 
-## What it does
+## Why no Patreon SDK?
+
+Patreon has published Node/Python/Java/Ruby SDKs, but they're all marked
+deprecated in their own READMEs:
+
+> **CAUTION**: This package is deprecated. It uses Patreon API v1, which is
+> deprecated and no longer maintained. This SDK will not receive further
+> updates. We recommend migrating to the Patreon API v2 by integrating
+> directly using your own HTTP client.
+
+So we hand-roll the OAuth exchange — which is what Patreon officially
+recommends. `patreon-php` is v2 but stale since 2022 and doesn't help a
+JS harness anyway.
+
+## What this does
 
 1. `npm run auth -- fan` — opens the Patreon OAuth authorize URL,
    catches the redirect, exchanges the code for tokens, saves them.

@@ -1,0 +1,51 @@
+name: repo hygiene
+
+on:
+  push:
+    branches: [main, "scaffold/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  no-internal-artifacts:
+    name: No AI artifacts in the public tree
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if .internal/ is tracked
+        run: |
+          if git ls-files | grep -qE "^\.internal/"; then
+            echo "ERROR: .internal/ contents are tracked in the repo. They must be gitignored."
+            git ls-files | grep -E "^\.internal/" | head -20
+            exit 1
+          fi
+
+      - name: Fail on obvious AI-artifact filename patterns
+        run: |
+          # Absolute-path filenames the AI has been known to generate. Add to
+          # this list when a new offender shows up.
+          bad='(^PLAN\.md$|^AI_NOTES\.md$|^SCRATCH\.md$|^\.claude/|^\.cursor/notes|^live-tests/|^references/kochj23|^references/swiftfin|^references/stingray|^references/sashimi|^references/komodio)'
+          matches=$(git ls-files | grep -E "$bad" || true)
+          if [ -n "$matches" ]; then
+            echo "ERROR: AI research/planning artifacts found in the public repo:"
+            echo "$matches"
+            exit 1
+          fi
+
+      - name: Fail if research-shaped .md files land in docs/
+        run: |
+          # docs/ is user-facing product docs only. Files named *-research.md,
+          # *-prior-art.md, or patreon-api-docs.md are internal artifacts.
+          bad='docs/.*(research|prior-art|patreon-api-docs|internal-api-openapi|portal-oauth)'
+          matches=$(git ls-files | grep -iE "$bad" || true)
+          if [ -n "$matches" ]; then
+            echo "ERROR: research-shaped files in docs/:"
+            echo "$matches"
+            exit 1
+          fi
+
+      - name: Info — repo is clean
+        run: echo "No AI artifacts detected in tracked files."

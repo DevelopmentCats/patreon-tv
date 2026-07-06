@@ -65,6 +65,7 @@ final class HomeViewModel {
             newFromCreators = Array(page.data.prefix(12))
             indexCampaigns(from: page.included ?? [])
             rebuildContinueWatching()
+            writeTopShelfSnapshot()
             state = homeFeed.isEmpty ? .empty : .loaded
         } catch {
             log.error("Home feed load failed: \(String(describing: error))")
@@ -98,6 +99,26 @@ final class HomeViewModel {
         let byID = Dictionary(uniqueKeysWithValues: homeFeed.map { ($0.id, $0) })
         let inProgress = PlaybackProgressStore.shared.continueWatching(matching: byID.keys)
         continueWatching = inProgress.compactMap { byID[$0.postID] }
+    }
+
+    /// Persist a top-shelf snapshot so the Top Shelf extension can show recent
+    /// posts on the Apple TV home screen without making any network calls.
+    private func writeTopShelfSnapshot() {
+        let items = homeFeed.prefix(10).map { post in
+            TopShelfSnapshot.Item(
+                postID: post.id,
+                title: post.attributes.title ?? "Untitled",
+                creator: campaign(for: post)?.attributes.name,
+                imageURL: post.attributes.metaImageURL ?? post.attributes.thumbnailURL,
+                publishedAt: post.attributes.publishedAt
+            )
+        }
+        let snapshot = TopShelfSnapshot(items: Array(items), updatedAt: Date())
+        do {
+            try snapshot.save()
+        } catch {
+            log.error("Top shelf snapshot save failed: \(String(describing: error))")
+        }
     }
 
     /// Walk the `included` array, pulling campaigns and mapping them to the

@@ -1,0 +1,84 @@
+name: tvOS build
+
+on:
+  push:
+    branches: [main, "scaffold/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & test (tvOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: apps/tvos
+        run: xcodegen generate
+
+      - name: Cache SPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/tvos/project.yml') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Show available simulators
+        run: xcrun simctl list devices available tvOS | head -20
+
+      - name: Build
+        working-directory: apps/tvos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project PatreonTV.xcodeproj \
+            -scheme PatreonTV \
+            -destination "platform=tvOS Simulator,name=Apple TV" \
+            -configuration Debug \
+            build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+          | tee build.log | grep -E "warning:|error:|BUILD" || true
+          if grep -q "BUILD FAILED" build.log; then exit 1; fi
+
+      - name: Test
+        working-directory: apps/tvos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project PatreonTV.xcodeproj \
+            -scheme PatreonTV \
+            -destination "platform=tvOS Simulator,name=Apple TV" \
+            -configuration Debug \
+            test \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+          | tee test.log | grep -E "warning:|error:|Test Case|Passed|Failed|BUILD" || true
+          if grep -q "TEST FAILED\|BUILD FAILED" test.log; then exit 1; fi
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: apps/tvos/*.log

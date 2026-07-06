@@ -19,7 +19,6 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    # Do not enable Bitcode — dead as of Xcode 15.
 
 targets:
   PatreonTV:
@@ -38,8 +37,10 @@ targets:
         CFBundleDisplayName: PatreonTV
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        # Allow the Patreon login WKWebView to load patreon.com (already HTTPS,
-        # but we set explicit ATS documentation for reviewers).
+        # Custom URL scheme for Top Shelf deep links
+        CFBundleURLTypes:
+          - CFBundleURLName: com.patreontv.PatreonTV
+            CFBundleURLSchemes: [patreontv]
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
           NSExceptionDomains:
@@ -47,7 +48,6 @@ targets:
               NSIncludesSubdomains: true
               NSExceptionRequiresForwardSecrecy: true
               NSExceptionMinimumTLSVersion: "TLSv1.2"
-        # Top Shelf extension (added later)
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UIRequiredDeviceCapabilities:
@@ -58,21 +58,47 @@ targets:
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)com.patreontv.PatreonTV
+        com.apple.security.application-groups:
+          - group.com.patreontv.PatreonTV
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.patreontv.PatreonTV
         TARGETED_DEVICE_FAMILY: "3"   # 3 = Apple TV
         INFOPLIST_KEY_CFBundleDisplayName: PatreonTV
-        # tvOS asset catalog entries
         ASSETCATALOG_COMPILER_APPICON_NAME: App Icon & Top Shelf Image
         ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME: LaunchImage
         SUPPORTS_MACCATALYST: NO
     dependencies:
-      # Nuke — image cache. Confirmed tvOS support in Package.swift.
       - package: Nuke
         product: Nuke
       - package: Nuke
         product: NukeUI
+      - target: PatreonTVTopShelf
+
+  PatreonTVTopShelf:
+    type: tv-services-extension
+    platform: tvOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PatreonTVTopShelf
+    info:
+      path: PatreonTVTopShelf/Info.plist
+      properties:
+        CFBundleDisplayName: PatreonTV Top Shelf
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.tv-top-shelf
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ContentProvider
+    entitlements:
+      path: PatreonTVTopShelf/PatreonTVTopShelf.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.patreontv.PatreonTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.patreontv.PatreonTV.TopShelf
+        TARGETED_DEVICE_FAMILY: "3"
 
   PatreonTVTests:
     type: bundle.unit-test
@@ -97,11 +123,10 @@ schemes:
     build:
       targets:
         PatreonTV: all
+        PatreonTVTopShelf: all
         PatreonTVTests: [test]
     run:
       config: Debug
-      commandLineArguments:
-        "-com.apple.CoreData.SQLDebug 0": true
     test:
       config: Debug
       gatherCoverageData: true
