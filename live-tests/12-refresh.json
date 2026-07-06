@@ -1,7 +1,0 @@
-{
-  "token_type": "Bearer",
-  "access_token": "DumjH62loVvjAEiaYdQvCpVM4fmDf8MKA2GeQUdsc7o",
-  "expires_in": 2678400,
-  "refresh_token": "d4sESCcsJy7y_zU0T4McU7EZzra1meujhlnFwFtb2Kk",
-  "scope": "identity[email] w:campaigns.posts campaigns.members.address apps.tiers campaigns.posts w:identity.clients identity.memberships campaigns.members[email] campaigns.members campaigns campaigns.lives identity w:campaigns.lives w:campaigns.webhook w:campaigns.apps w:campaigns.benefits campaigns.webhook"
-}

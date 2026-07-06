@@ -18,18 +18,7 @@ patreon-tv/
 ├── apps/tvos/          The Apple TV app (SwiftUI, tvOS 17+, XcodeGen)
 ├── services/pairing/   OPTIONAL push/notifications service — not required for v1
 ├── harness/            Node scripts for live-testing the Patreon API
-├── docs/               Research, live-probe results, prior art analysis
-│   ├── patreon-api-docs.md          Extracted Patreon official API docs
-│   ├── patreon-research.md          Evidence-based research w/ live-probe §14
-│   ├── library-research.md          Swift/tvOS library evaluation
-│   ├── media-clients-prior-art.md   Swiftfin, VLC, Kodi, Stremio review
-│   └── patreon-internal-api-openapi.yaml  Community-maintained internal API spec
-├── references/         Cloned reference apps + extracted Swift patterns
-│   ├── kochj23-PatreonTV/    Prior-art Patreon tvOS client (MIT)
-│   ├── swiftfin_code/        Jellyfin tvOS canonical patterns
-│   ├── stingray_code/        More tvOS patterns
-│   └── sashimi_code/         Custom-focus-effect reference
-├── live-tests/         Redacted JSON from real Patreon API probes
+├── docs/               User-facing docs (WIP)
 ├── skills/             Vendored Agent Skills (SwiftUI Expert, tvOS Design, Xcode Setup)
 └── .agents/skills/     Symlinks to the vendored skills (repo-wide auto-load)
 ```

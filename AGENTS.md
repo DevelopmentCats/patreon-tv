@@ -12,25 +12,30 @@ Load and consult these before writing code in their domain:
 | `tvos-design-guidelines` | Any tvOS design decision. 47 rules across focus, remote, 10-foot UI, top shelf, media, tab bar, accessibility. Follow the CRITICAL rules unless there's a specific reason not to. |
 | `xcode-project-setup` | Modifying the Xcode project (adding SPM packages, framework links). **No Ruby, no `xcodeproj` gem.** Use the provided Swift script or XcodeGen. |
 
-## Reference implementations — under `references/`
+## Reference implementations — under `.internal/references/`
 
-- **`kochj23-PatreonTV/`** — a working open-source tvOS Patreon client (MIT). Architecture is Mac-companion; we're single-app. **Do NOT copy the architecture**, but the API client, model shapes, and post-type parsing are directly reusable. Read `Shared/Services/PatreonAPI.swift` and `Shared/Models/PatreonModels.swift`.
-- **`swiftfin_code/`** — Jellyfin's tvOS client (MPL-2.0). **This is the canonical UI reference.** Key files:
+> These are workspace-only — vendored via `.internal/` and NOT in the public repo.
+> Available on the maintainer's workspace when working with an AI agent.
+
+- **`.internal/references/kochj23-PatreonTV/`** — a working open-source tvOS Patreon client (MIT). Architecture is Mac-companion; we're single-app. **Do NOT copy the architecture**, but the API client, model shapes, and post-type parsing are directly reusable. Read `Shared/Services/PatreonAPI.swift` and `Shared/Models/PatreonModels.swift`.
+- **`.internal/references/swiftfin_code/`** — Jellyfin's tvOS client (MPL-2.0). **This is the canonical UI reference.** Key files:
   - `CinematicItemSelector.swift` — hero-follows-focus pattern using `@FocusedValue(\.focusedPoster)` with a debounced background swap
-  - `PosterHStack.swift` — the shelf pattern; wraps `LePips/CollectionHStack` for Netflix-like "focused card locks to leading edge" scroll
-  - `FocusGuide.swift` — **marked deprecated by Swiftfin itself.** Do NOT use `UIFocusGuide` bridges; use SwiftUI-native `defaultFocus` / `focusScope` (tvOS 15+/17+).
-- **`stingray_code/`** — another tvOS media client; uses `.buttonStyle(.card)` for poster focus effects. Simplest starting point.
-- **`sashimi_code/`** — custom focus effect with `@FocusState + .scaleEffect + .shadow` — reference if we want brand-accent glow.
+  - `PosterHStack.swift` — the shelf pattern
+  - `FocusGuide.swift` — **marked deprecated by Swiftfin itself.** Use SwiftUI-native `defaultFocus` / `focusScope`.
+- **`.internal/references/stingray_code/`** — another tvOS media client; uses `.buttonStyle(.card)` for poster focus.
+- **`.internal/references/sashimi_code/`** — custom focus effect reference.
 
-## Research — under `docs/`
+## Research — under `.internal/research/`
 
-- **`patreon-research.md`** (1,657 lines) — **read §14 before touching the API layer.** It's the empirical live-probe findings, including the Mux HLS discovery and the `current_user_can_view` restriction.
+> Also workspace-only, gitignored.
+
+- **`patreon-research.md`** (1,657 lines) — **read §14 before touching the API layer.** Live-probe findings including the Mux HLS discovery and the `current_user_can_view` restriction.
 - **`patreon-api-docs.md`** — extracted Patreon official docs (public v2 API only)
 - **`patreon-internal-api-openapi.yaml`** — community-maintained spec for `https://www.patreon.com/api/*` (internal API). This is what we actually hit at runtime.
-- **`library-research.md`** — Swift/tvOS library evaluation with tvOS support confirmation per library.
-- **`media-clients-prior-art.md`** — Swiftfin/VLC/Stremio patterns compared, with recommended patterns pulled out.
+- **`library-research.md`** — Swift/tvOS library evaluation.
+- **`media-clients-prior-art.md`** — Swiftfin/VLC/Stremio patterns compared.
 
-## Live-probe data — under `live-tests/`
+## Live-probe data — under `.internal/live-tests/`
 
 Real Patreon API responses (redacted) from a paying-patron account. Use these as fixtures for tests. `17-internal-full.json` contains a real Mux HLS URL structure for a video post.
 

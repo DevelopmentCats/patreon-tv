@@ -9,9 +9,13 @@
 //  Live-probe evidence:    docs/patreon-research.md §14
 //  Sample responses:       live-tests/*.json
 //
+//  Design: every method returns the full JSON:API document envelope
+//  (SingleResource / MultiResource / Page). Callers walk `.included` when they
+//  need related resources. This keeps decoding and joining logic uniform.
+//
 //  This is the internal (undocumented) API. Patreon staff have discouraged
 //  third-party use of it — see docs/patreon-research.md §0. Endpoints may
-//  change without notice. We must handle every request defensively.
+//  change without notice. We handle every request defensively.
 //
 
 import Foundation
@@ -45,7 +49,7 @@ final class PatreonClient {
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) PatreonTV/0.1"
 
-    // MARK: - Public endpoints
+    // MARK: - Endpoints
 
     /// GET /api/current_user — the identity + campaigns bootstrap.
     func currentUser() async throws -> PatreonUser {
@@ -53,12 +57,11 @@ final class PatreonClient {
             .appending(queryItems: [
                 URLQueryItem(name: "include", value: "memberships.campaign"),
                 URLQueryItem(name: "fields[user]", value: "full_name,email,image_url,thumb_url,is_creator,vanity,url"),
-                URLQueryItem(name: "fields[campaign]", value: "name,vanity,url,avatar_photo_url,cover_photo_url,summary,creation_name,patron_count,is_nsfw"),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,url,image_url,image_small_url,cover_photo_url,summary,creation_name,patron_count,is_nsfw"),
                 URLQueryItem(name: "fields[member]", value: "patron_status,currently_entitled_amount_cents,is_free_trial,is_gifted"),
             ])
         let (data, _) = try await get(url)
-        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonUser>.self, from: data)
-        return doc.data
+        return try JSONAPIDecoder.decode(SingleResource<PatreonUser>.self, from: data).data
     }
 
     /// GET /api/stream — the fan's home feed of posts from creators they follow.
@@ -67,7 +70,7 @@ final class PatreonClient {
         var qi: [URLQueryItem] = [
             URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
             URLQueryItem(name: "fields[post]", value: PostFields.default),
-            URLQueryItem(name: "fields[campaign]", value: "name,vanity,avatar_photo_url,url"),
+            URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url"),
             URLQueryItem(name: "fields[media]", value: MediaFields.default),
             URLQueryItem(name: "page[count]", value: String(limit)),
         ]
@@ -80,15 +83,31 @@ final class PatreonClient {
     }
 
     /// GET /api/current_user/memberships — creators the user supports.
-    func memberships() async throws -> [Membership] {
+    /// Returns the full document so callers can join member → campaign.
+    func memberships() async throws -> MultiResource<Membership> {
         let url = baseURL.appending(path: "current_user/memberships")
             .appending(queryItems: [
                 URLQueryItem(name: "include", value: "campaign"),
-                URLQueryItem(name: "fields[campaign]", value: "name,vanity,avatar_photo_url,cover_photo_url,summary,creation_name,patron_count,is_nsfw,url"),
-                URLQueryItem(name: "fields[member]", value: "patron_status,currently_entitled_amount_cents,is_gifted,is_free_trial"),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,creation_name,summary,patron_count,is_nsfw,image_url,image_small_url,cover_photo_url,url"),
+                URLQueryItem(name: "fields[member]", value: "patron_status,currently_entitled_amount_cents,is_gifted,is_free_trial,last_charge_status,last_charge_date,lifetime_support_cents"),
             ])
         let (data, _) = try await get(url)
-        return try JSONAPIDecoder.decode(MultiResource<Membership>.self, from: data).data
+        return try JSONAPIDecoder.decode(MultiResource<Membership>.self, from: data)
+    }
+
+    /// GET /api/campaigns/{id} — one campaign's public info.
+    func campaign(id: String) async throws -> SingleResource<Campaign> {
+        let url = baseURL.appending(path: "campaigns/\(id)")
+            .appending(queryItems: [
+                URLQueryItem(name: "fields[campaign]", value: [
+                    "name", "vanity", "url", "summary", "creation_name",
+                    "patron_count", "is_nsfw", "image_url", "image_small_url",
+                    "cover_photo_url", "main_video_url", "main_video_embed",
+                    "has_rss", "rss_feed_title",
+                ].joined(separator: ",")),
+            ])
+        let (data, _) = try await get(url)
+        return try JSONAPIDecoder.decode(SingleResource<Campaign>.self, from: data)
     }
 
     /// GET /api/campaigns/{id}/posts — posts on one campaign.
@@ -107,9 +126,9 @@ final class PatreonClient {
         return try JSONAPIDecoder.decode(Page<Post>.self, from: data)
     }
 
-    /// GET /api/posts/{id} — a single post with media.
-    /// Returns the full document (including `included` array) so callers can
-    /// pull the Media object with the Mux HLS URL for playable video content.
+    /// GET /api/posts/{id} — a single post with media includes.
+    /// Returns the full document; callers walk `included` for the Media
+    /// resource containing the Mux HLS URL.
     func post(id: String) async throws -> SingleResource<Post> {
         let url = baseURL.appending(path: "posts/\(id)")
             .appending(queryItems: [
@@ -120,6 +139,21 @@ final class PatreonClient {
             ])
         let (data, _) = try await get(url)
         return try JSONAPIDecoder.decode(SingleResource<Post>.self, from: data)
+    }
+
+    /// GET /api/search — Patreon's search endpoint (internal).
+    /// TODO: shape unverified — spec says path is /api/search, need to probe.
+    func search(query: String, limit: Int = 20) async throws -> Page<Post> {
+        let url = baseURL.appending(path: "search")
+            .appending(queryItems: [
+                URLQueryItem(name: "q", value: query),
+                URLQueryItem(name: "include", value: "user,campaign"),
+                URLQueryItem(name: "fields[post]", value: PostFields.default),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,url"),
+                URLQueryItem(name: "page[count]", value: String(limit)),
+            ])
+        let (data, _) = try await get(url)
+        return try JSONAPIDecoder.decode(Page<Post>.self, from: data)
     }
 
     // MARK: - Transport

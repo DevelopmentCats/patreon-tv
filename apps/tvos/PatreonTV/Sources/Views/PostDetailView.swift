@@ -17,6 +17,8 @@ struct PostDetailView: View {
     @State private var errorMessage: String?
     @State private var isLoading = true
     @State private var showPlayer = false
+    /// Bumped to force a re-read of PlaybackProgressStore after we clear it.
+    @State private var resumeProgressStamp = UUID()
 
     var body: some View {
         Group {
@@ -32,7 +34,12 @@ struct PostDetailView: View {
         .background(PatreonColors.background.ignoresSafeArea())
         .fullScreenCover(isPresented: $showPlayer) {
             if let mediaURL {
-                PlayerView(mediaURL: mediaURL, title: post?.attributes.title ?? "")
+                PlayerView(
+                    mediaURL: mediaURL,
+                    title: post?.attributes.title ?? "",
+                    postID: postID,
+                    resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds
+                )
             }
         }
     }
@@ -48,16 +55,34 @@ struct PostDetailView: View {
                     .padding(.top, 60)
 
                 if let mediaURL {
-                    Button {
-                        showPlayer = true
-                    } label: {
-                        Label("Play", systemImage: "play.fill")
-                            .font(.title3.weight(.semibold))
-                            .padding(.horizontal, 48)
-                            .padding(.vertical, 20)
+                    HStack(spacing: 16) {
+                        Button {
+                            showPlayer = true
+                        } label: {
+                            Label(playButtonLabel, systemImage: "play.fill")
+                                .font(.title3.weight(.semibold))
+                                .padding(.horizontal, 48)
+                                .padding(.vertical, 20)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(PatreonColors.brand)
+
+                        if resumeProgress != nil {
+                            Button {
+                                // Clear resume point → next play starts from 0
+                                PlaybackProgressStore.shared.clear(postID: postID)
+                                // Trigger re-render by touching state
+                                resumeProgressStamp = UUID()
+                                showPlayer = true
+                            } label: {
+                                Text("Start Over")
+                                    .font(.title3.weight(.medium))
+                                    .padding(.horizontal, 32)
+                                    .padding(.vertical, 20)
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PatreonColors.brand)
                     .padding(.horizontal, 60)
                 } else if post.attributes.currentUserCanView == false {
                     lockedNotice
@@ -72,7 +97,7 @@ struct PostDetailView: View {
 
                 if let content = post.attributes.content, !content.isEmpty {
                     // Content is HTML — for MVP we strip tags and show plaintext.
-                    Text(stripHTML(content))
+                    Text(HTMLRenderer.stripToPlainText(content))
                         .font(.body)
                         .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
                         .padding(.horizontal, 60)
@@ -81,6 +106,33 @@ struct PostDetailView: View {
                 Spacer(minLength: 60)
             }
         }
+    }
+
+    private var resumeProgress: PlaybackProgress? {
+        // resumeProgressStamp is read here so mutations force this to recompute.
+        _ = resumeProgressStamp
+        guard let p = PlaybackProgressStore.shared.progress(for: postID),
+              !p.isFinished,
+              p.positionSeconds > 5
+        else { return nil }
+        return p
+    }
+
+    private var playButtonLabel: String {
+        if let p = resumeProgress {
+            return "Resume from \(formatTime(p.positionSeconds))"
+        }
+        return "Play"
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%d:%02d", m, s)
     }
 
     private var lockedNotice: some View {
@@ -126,19 +178,5 @@ struct PostDetailView: View {
             }
         }
         return nil
-    }
-
-    private func stripHTML(_ html: String) -> String {
-        // Trivially unescape and remove tags. For MVP we render plaintext;
-        // later we'll render HTML with a proper renderer.
-        var s = html
-        s = s.replacingOccurrences(of: "<br>", with: "\n")
-        s = s.replacingOccurrences(of: "</p>", with: "\n\n")
-        s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        s = s.replacingOccurrences(of: "&nbsp;", with: " ")
-        s = s.replacingOccurrences(of: "&amp;", with: "&")
-        s = s.replacingOccurrences(of: "&lt;", with: "<")
-        s = s.replacingOccurrences(of: "&gt;", with: ">")
-        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

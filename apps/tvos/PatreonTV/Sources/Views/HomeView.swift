@@ -39,24 +39,38 @@ struct HomeView: View {
     @ViewBuilder
     private var loadedContent: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: 60) {
-                // TODO: hero band once we have "featured" data. For MVP we start
-                // straight into the shelves so the app is useful on day one.
+            LazyVStack(alignment: .leading, spacing: 60, pinnedViews: []) {
+                HeroBand(fallback: vm.heroFallback)
+                    .padding(.bottom, -80)   // Let the first shelf overlap the gradient
+
+                if !vm.continueWatching.isEmpty {
+                    Shelf(
+                        title: "Continue Watching",
+                        posts: vm.continueWatching,
+                        campaignFor: { vm.campaign(for: $0) }
+                    )
+                }
+
                 if !vm.newFromCreators.isEmpty {
                     Shelf(
                         title: "New from Your Creators",
-                        posts: vm.newFromCreators
+                        posts: vm.newFromCreators,
+                        campaignFor: { vm.campaign(for: $0) }
                     )
                 }
 
                 if !vm.homeFeed.isEmpty {
                     Shelf(
                         title: "Home Feed",
-                        posts: vm.homeFeed
+                        posts: vm.homeFeed,
+                        campaignFor: { vm.campaign(for: $0) },
+                        onNearEnd: { post in
+                            Task { await vm.loadMoreIfNeeded(current: post) }
+                        }
                     )
                 }
             }
-            .padding(.vertical, 40)
+            .padding(.bottom, 40)
         }
         .scrollClipDisabled()   // tvOS 17+ — lets focused-card scale escape ScrollView bounds
     }

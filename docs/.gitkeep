@@ -1,0 +1,2 @@
+User-facing documentation lives here (contributing guide, architecture,
+release notes). AI research artifacts live in .internal/ and are gitignored.

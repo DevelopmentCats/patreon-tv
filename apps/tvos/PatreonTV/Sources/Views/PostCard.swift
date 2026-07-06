@@ -19,6 +19,7 @@ import SwiftUI
 struct PostCard: View {
 
     let post: Post
+    var campaign: Campaign? = nil
 
     private let cardWidth: CGFloat = 400
     private let cardHeight: CGFloat = 225   // 16:9
@@ -113,13 +114,13 @@ struct PostCard: View {
     }
 
     private var subtitle: String? {
-        // Later: creator name from the campaign relation
-        nil
+        campaign?.attributes.name
     }
 
     private var accessibilityLabel: String {
         let title = post.attributes.title ?? "Untitled post"
+        let creator = campaign?.attributes.name.map { " by \($0)" } ?? ""
         let paid = post.attributes.isPaid == true ? ", patron-only" : ""
-        return "\(title)\(paid)"
+        return "\(title)\(creator)\(paid)"
     }
 }
