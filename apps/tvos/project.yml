@@ -76,7 +76,7 @@ targets:
       - target: PatreonTVTopShelf
 
   PatreonTVTopShelf:
-    type: tv-services-extension
+    type: tv-app-extension
     platform: tvOS
     deploymentTarget: "17.0"
     sources:
