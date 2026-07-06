@@ -2,7 +2,7 @@ name: site
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**"]
+    branches: [main, "scaffold/**", "feature/**", "fix/**"]
     paths:
       - "site/**"
       - ".github/workflows/site.yml"
@@ -30,12 +30,6 @@ jobs:
         working-directory: site
         run: npm ci
 
-      - name: Type-check
-        working-directory: site
-        run: npm run check --if-present || true
-        # `check` requires the language server which may not fully work in CI.
-        # We treat it as advisory for now — build is the real gate.
-
       - name: Build
         working-directory: site
         run: npm run build
@@ -43,8 +37,23 @@ jobs:
       - name: Confirm key files exist in dist
         working-directory: site
         run: |
-          test -f dist/client/robots.txt
-          test -f dist/client/favicon.svg
-          test -f dist/client/.well-known/apple-app-site-association
-          test -f dist/client/_headers
-          echo "All expected static files present in dist/client/"
+          # Static pages
+          test -f dist/index.html
+          test -f dist/privacy/index.html
+          test -f dist/terms/index.html
+          test -f dist/support/index.html
+          # Static assets
+          test -f dist/robots.txt
+          test -f dist/favicon.svg
+          test -f dist/_headers
+          test -f dist/.well-known/apple-app-site-association
+          echo "Static build output OK"
+
+      - name: Confirm Pages Functions exist
+        working-directory: site
+        run: |
+          test -f functions/api/health.ts
+          test -f functions/post/[id].ts
+          test -f functions/creator/[id].ts
+          test -f functions/_lib/renderShareFallback.ts
+          echo "Pages Functions present"

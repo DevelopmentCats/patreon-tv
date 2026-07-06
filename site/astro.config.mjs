@@ -1,17 +1,15 @@
 // astro.config.mjs
 //
-// Astro + Cloudflare adapter. Static output by default; individual pages
-// can opt in to server rendering by exporting `export const prerender = false`.
+// Fully-static output. Dynamic endpoints live in `functions/` (Cloudflare
+// Pages Functions) instead of Astro server routes. Removes the Astro
+// Cloudflare adapter, which was tripping over reserved binding names in
+// its auto-generated wrangler.json.
 
 import { defineConfig } from "astro/config";
-import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
   site: "https://patreontv.app",
-  output: "static",           // default; server pages opt out per-page
-  adapter: cloudflare({
-    platformProxy: { enabled: true },
-  }),
+  output: "static",
   compressHTML: true,
   build: {
     inlineStylesheets: "auto",
