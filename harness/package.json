@@ -1,0 +1,16 @@
+{
+  "name": "patreon-tv-harness",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Live-testing harness for the Patreon API. Runs the OAuth authorization-code flow, then probes every endpoint we care about and dumps real responses so we can see what the API actually returns.",
+  "scripts": {
+    "auth": "node auth-server.js",
+    "probe": "node probe.js",
+    "probe:as-fan": "node probe.js fan",
+    "probe:as-creator": "node probe.js creator"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

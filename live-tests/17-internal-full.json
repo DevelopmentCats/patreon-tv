@@ -1,0 +1,452 @@
+{
+  "data": {
+    "id": "162743341",
+    "type": "post",
+    "attributes": {
+      "current_user_can_view": false,
+      "image": {
+        "url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumb_url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "large_url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumb_square_url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumb_square_large_url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "width": 1920,
+        "height": 1080
+      },
+      "meta_image_url": "https://www.patreon.com/ig/card-teaser-image/post/162743341/landscape.png?v=1783028619000",
+      "post_type": "video_external_file",
+      "thumbnail": {
+        "original": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "default": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "default_blurred": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "default_small": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "default_large": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "default_blurred_small": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumbnail": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumbnail_large": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "thumbnail_small": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+        "width": 1920,
+        "height": 1080
+      },
+      "title": "Crazy Legal Updates!",
+      "url": "https://www.patreon.com/RecklessBen/posts/crazy-legal-162743341",
+      "video_preview": null
+    },
+    "relationships": {
+      "audio": {
+        "data": null
+      },
+      "campaign": {
+        "data": {
+          "id": "4270549",
+          "type": "campaign"
+        },
+        "links": {
+          "related": "https://www.patreon.com/api/campaigns/4270549"
+        }
+      },
+      "images": {
+        "data": []
+      },
+      "media": {
+        "data": [
+          {
+            "id": "691847588",
+            "type": "media"
+          }
+        ]
+      },
+      "video": {
+        "data": {
+          "id": "691847588",
+          "type": "media"
+        },
+        "links": {
+          "related": "https://www.patreon.com/api/media/691847588"
+        }
+      }
+    }
+  },
+  "included": [
+    {
+      "id": "4270549",
+      "type": "campaign",
+      "attributes": {
+        "name": "Reckless Ben",
+        "url": "https://www.patreon.com/RecklessBen",
+        "vanity": "RecklessBen"
+      },
+      "relationships": {
+        "creator": {
+          "data": {
+            "id": "32936401",
+            "type": "user"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/user/32936401"
+          }
+        },
+        "goals": {
+          "data": null
+        },
+        "rewards": {
+          "data": [
+            {
+              "id": "-1",
+              "type": "reward"
+            },
+            {
+              "id": "10332283",
+              "type": "reward"
+            },
+            {
+              "id": "4871602",
+              "type": "reward"
+            },
+            {
+              "id": "9248571",
+              "type": "reward"
+            },
+            {
+              "id": "4871622",
+              "type": "reward"
+            },
+            {
+              "id": "9248586",
+              "type": "reward"
+            },
+            {
+              "id": "4871687",
+              "type": "reward"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "691847588",
+      "type": "media",
+      "attributes": {
+        "display": {
+          "duration": 344.510833,
+          "full_content_duration": 344.510833,
+          "expires_at": "2026-07-07T04:00:00.000+00:00",
+          "width": 1920,
+          "height": 1080,
+          "progress": {
+            "is_watched": false,
+            "watch_state": "is_not_watched"
+          },
+          "default_thumbnail": {
+            "url": "https://image.mux.com/EwgM6D8ZHAc853Rlsdn6atbOQnnb9nCPX1saOJG7msU/thumbnail.jpg?token=<JWT_REDACTED>",
+            "position": 3.0
+          },
+          "video_issues": {},
+          "state": "ready",
+          "media_id": 691847588,
+          "closed_captions_enabled": true
+        },
+        "file_name": null,
+        "image_urls": null,
+        "metadata": {
+          "video_preview_end_ms": null,
+          "video_preview_start_ms": null
+        },
+        "mimetype": "application/x-mpegURL",
+        "state": "ready"
+      }
+    },
+    {
+      "id": "32936401",
+      "type": "user",
+      "attributes": {
+        "about": null,
+        "created": "2020-04-02T22:49:48.000+00:00",
+        "current_user_block_status": "none",
+        "facebook": null,
+        "first_name": "Reckless",
+        "full_name": "Reckless Ben",
+        "gender": 1,
+        "image_url": "https://c10.patreonusercontent.com/4/patreon-media/p/campaign/4270549/bc4e5c9777d1402bbfee1cde9eb4272d/eyJ3IjoyMDB9/4.png?token-hash=<REDACTED>",
+        "last_name": "Ben",
+        "social_connections": {
+          "discord": null,
+          "facebook": null,
+          "google": null,
+          "instagram": {
+            "url": "https://www.instagram.com/recklessbenschneider",
+            "user_id": "218063744"
+          },
+          "reddit": null,
+          "spotify": null,
+          "spotify_open_access": null,
+          "tiktok": null,
+          "twitch": null,
+          "twitter": null,
+          "twitter2": null,
+          "twitter_new_app": null,
+          "vimeo": null,
+          "youtube": null
+        },
+        "thumb_url": "https://c10.patreonusercontent.com/4/patreon-media/p/campaign/4270549/bc4e5c9777d1402bbfee1cde9eb4272d/eyJ3IjoyMDB9/4.png?token-hash=<REDACTED>",
+        "twitch": null,
+        "twitter": null,
+        "url": "https://www.patreon.com/RecklessBen",
+        "vanity": "RecklessBen",
+        "youtube": null
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "-1",
+      "type": "reward",
+      "attributes": {
+        "amount": 0,
+        "amount_cents": 0,
+        "description": "Everyone",
+        "user_limit": null,
+        "remaining": 0,
+        "requires_shipping": false,
+        "created_at": null,
+        "url": null,
+        "patron_currency": "USD"
+      }
+    },
+    {
+      "id": "10332283",
+      "type": "reward",
+      "attributes": {
+        "amount": 0,
+        "amount_cents": 0,
+        "created_at": "2023-10-12T17:30:14.484+00:00",
+        "currency": "USD",
+        "declined_patron_count": 720,
+        "description": "",
+        "discord_role_ids": null,
+        "edited_at": "2023-10-12T17:30:14.484+00:00",
+        "image_url": null,
+        "is_free_tier": true,
+        "patron_amount_cents": 0,
+        "patron_currency": "USD",
+        "post_count": 0,
+        "published": true,
+        "published_at": "2023-10-12T17:30:14.484+00:00",
+        "remaining": null,
+        "requires_shipping": false,
+        "title": "Free",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=10332283"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "4871602",
+      "type": "reward",
+      "attributes": {
+        "amount": 800,
+        "amount_cents": 800,
+        "created_at": "2020-04-02T23:49:45.519+00:00",
+        "currency": "USD",
+        "declined_patron_count": 2729,
+        "description": "<ul><li><p style=\"\">access to videos. There's a lot of jokes that don't make the cut and random cool things I do that are kind of unrelated to my main channel videos. If you're curious of how I pull a stunt off, you can probably find it here on patreon.</p></li></ul>",
+        "discord_role_ids": null,
+        "edited_at": "2026-05-21T06:31:47.350+00:00",
+        "image_url": "https://c10.patreonusercontent.com/4/patreon-media/p/reward/4871602/195842b6b6ef4c22a43cf07384f2eed6/eyJ3Ijo0MDB9/2.jpg?token-hash=<REDACTED>",
+        "is_free_tier": false,
+        "patron_amount_cents": 800,
+        "patron_currency": "USD",
+        "post_count": 3,
+        "published": true,
+        "published_at": "2021-06-07T21:05:48.358+00:00",
+        "remaining": null,
+        "requires_shipping": false,
+        "title": "Level 1",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=4871602"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "9248571",
+      "type": "reward",
+      "attributes": {
+        "amount": 1000,
+        "amount_cents": 1000,
+        "created_at": "2022-11-11T00:23:27.589+00:00",
+        "currency": "USD",
+        "declined_patron_count": 252,
+        "description": "<p style=\"\">You'll get everything above as well as weekly live videos where I answer all your questions! </p>",
+        "discord_role_ids": null,
+        "edited_at": "2022-11-24T05:54:24.102+00:00",
+        "image_url": null,
+        "is_free_tier": false,
+        "patron_amount_cents": 1000,
+        "patron_currency": "USD",
+        "post_count": 8,
+        "published": true,
+        "published_at": "2022-11-11T00:23:27.589+00:00",
+        "remaining": null,
+        "requires_shipping": false,
+        "title": "Level 2",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=9248571"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "4871622",
+      "type": "reward",
+      "attributes": {
+        "amount": 2500,
+        "amount_cents": 2500,
+        "created_at": "2020-04-02T23:53:57.341+00:00",
+        "currency": "USD",
+        "declined_patron_count": 15,
+        "description": "<p>As well as everything mentioned above, you get exclusive <strong>access to a</strong> <strong>quarterly live Q&amp;A discussion</strong> where I'll answer as many of your questions as I can!</p>",
+        "discord_role_ids": null,
+        "edited_at": "2022-11-11T00:27:09.257+00:00",
+        "image_url": null,
+        "is_free_tier": false,
+        "patron_amount_cents": 2500,
+        "patron_currency": "USD",
+        "post_count": 12,
+        "published": true,
+        "published_at": "2021-06-07T21:02:14.904+00:00",
+        "remaining": null,
+        "requires_shipping": false,
+        "title": "Level 3",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=4871622"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "9248586",
+      "type": "reward",
+      "attributes": {
+        "amount": 10000,
+        "amount_cents": 10000,
+        "created_at": "2022-11-11T00:28:28.424+00:00",
+        "currency": "USD",
+        "declined_patron_count": 5,
+        "description": "<p>You're really helping fund the channel! You're now an official producer of the Reckless Ben Channel.  You can add that to your IMDB, you literally make what I do possible, and that's not an exaggeration! </p>",
+        "discord_role_ids": null,
+        "edited_at": "2022-11-11T00:28:28.424+00:00",
+        "image_url": null,
+        "is_free_tier": false,
+        "patron_amount_cents": 10000,
+        "patron_currency": "USD",
+        "post_count": 8,
+        "published": true,
+        "published_at": "2022-11-11T00:28:28.424+00:00",
+        "remaining": null,
+        "requires_shipping": false,
+        "title": "Level 4",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=9248586"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    },
+    {
+      "id": "4871687",
+      "type": "reward",
+      "attributes": {
+        "amount": 100000,
+        "amount_cents": 100000,
+        "created_at": "2020-04-03T00:01:56.529+00:00",
+        "currency": "USD",
+        "declined_patron_count": 0,
+        "description": "<ul><li><p style=\"\">OMG let's make an awesome video together! I'll use all the money to do something super super super super epic</p></li></ul>",
+        "discord_role_ids": null,
+        "edited_at": "2025-09-04T22:06:48.139+00:00",
+        "image_url": "https://c10.patreonusercontent.com/4/patreon-media/p/reward/4871687/d0863a4092234c8a8009fefbcd422025/eyJ3Ijo0MDB9/1.jpg?token-hash=<REDACTED>",
+        "is_free_tier": false,
+        "patron_amount_cents": 100000,
+        "patron_currency": "USD",
+        "post_count": 12,
+        "published": true,
+        "published_at": "2021-06-07T20:58:37.374+00:00",
+        "remaining": null,
+        "requires_shipping": true,
+        "title": "God",
+        "unpublished_at": null,
+        "url": "https://www.patreon.com/checkout/RecklessBen?rid=4871687"
+      },
+      "relationships": {
+        "campaign": {
+          "data": {
+            "id": "4270549",
+            "type": "campaign"
+          },
+          "links": {
+            "related": "https://www.patreon.com/api/campaigns/4270549"
+          }
+        }
+      }
+    }
+  ],
+  "links": {
+    "self": "https://www.patreon.com/api/posts/162743341"
+  }
+}

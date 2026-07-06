@@ -1,0 +1,154 @@
+{
+  "data": {
+    "id": "86262355",
+    "type": "post",
+    "attributes": {
+      "content": null,
+      "current_user_can_view": true,
+      "post_file": {
+        "duration": 1653.8522,
+        "full_content_duration": 1653.8522,
+        "url": "https://stream.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8.m3u8?token=<JWT_REDACTED>",
+        "viewer_playback_data": {
+          "playback_id": "jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8",
+          "playback_token": "<JWT_REDACTED>",
+          "url": "https://stream.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8.m3u8?token=<JWT_REDACTED>",
+          "playback_token_expiry": "2026-07-07T04:00:00.000+00:00"
+        },
+        "expires_at": "2026-07-07T04:00:00.000+00:00",
+        "width": 1920,
+        "height": 1080,
+        "progress": {},
+        "default_thumbnail": {
+          "url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/thumbnail.jpg?token=<JWT_REDACTED>",
+          "position": 271.605
+        },
+        "storyboard": {
+          "vtt_url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/storyboard.vtt?token=<JWT_REDACTED>",
+          "json_url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/storyboard.json?token=<JWT_REDACTED>"
+        },
+        "video_issues": {
+          "processing_warning": {
+            "video_bitrate": "high"
+          }
+        },
+        "state": "ready",
+        "media_id": 216581623,
+        "closed_captions_enabled": true
+      },
+      "post_type": "video_external_file",
+      "title": "Mckamey Manor Repload (deleted video)"
+    },
+    "relationships": {
+      "media": {
+        "data": [
+          {
+            "id": "216581623",
+            "type": "media"
+          },
+          {
+            "id": "216607212",
+            "type": "media"
+          }
+        ]
+      },
+      "video": {
+        "data": {
+          "id": "216581623",
+          "type": "media"
+        },
+        "links": {
+          "related": "https://www.patreon.com/api/media/216581623"
+        }
+      }
+    }
+  },
+  "included": [
+    {
+      "id": "216581623",
+      "type": "media",
+      "attributes": {
+        "display": {
+          "duration": 1653.8522,
+          "full_content_duration": 1653.8522,
+          "url": "https://stream.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8.m3u8?token=<JWT_REDACTED>",
+          "viewer_playback_data": {
+            "playback_id": "jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8",
+            "playback_token": "<JWT_REDACTED>",
+            "url": "https://stream.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8.m3u8?token=<JWT_REDACTED>",
+            "playback_token_expiry": "2026-07-07T04:00:00.000+00:00"
+          },
+          "expires_at": "2026-07-07T04:00:00.000+00:00",
+          "width": 1920,
+          "height": 1080,
+          "progress": {
+            "is_watched": false,
+            "watch_state": "is_not_watched"
+          },
+          "default_thumbnail": {
+            "url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/thumbnail.jpg?token=<JWT_REDACTED>",
+            "position": 271.605
+          },
+          "storyboard": {
+            "vtt_url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/storyboard.vtt?token=<JWT_REDACTED>",
+            "json_url": "https://image.mux.com/jaLVL2rXj9tyI4c02HyuG1Xtdi024iEAydrMl00n3yWjS8/storyboard.json?token=<JWT_REDACTED>"
+          },
+          "video_issues": {
+            "processing_warning": {
+              "video_bitrate": "high"
+            }
+          },
+          "state": "ready",
+          "media_id": 216581623,
+          "closed_captions_enabled": true
+        },
+        "download_url": "https://c10.patreonusercontent.com/4/patreon-media/p/post/86262355/f512c3814c5e4dafb50778cbec61ec34/eyJhIjoxLCJwIjoxfQ%3D%3D/1?token-hash=<REDACTED>&token-time=<REDACTED>",
+        "file_name": null,
+        "mimetype": "application/x-mpegURL",
+        "state": "ready"
+      }
+    },
+    {
+      "id": "216607212",
+      "type": "media",
+      "attributes": {
+        "display": {
+          "duration": 30.0,
+          "full_content_duration": 1653.8522,
+          "url": "https://stream.mux.com/eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c.m3u8?token=<JWT_REDACTED>",
+          "viewer_playback_data": {
+            "playback_id": "eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c",
+            "playback_token": "<JWT_REDACTED>",
+            "url": "https://stream.mux.com/eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c.m3u8?token=<JWT_REDACTED>",
+            "playback_token_expiry": "2026-07-07T04:00:00.000+00:00"
+          },
+          "expires_at": "2026-07-07T04:00:00.000+00:00",
+          "width": 1920,
+          "height": 1080,
+          "progress": {
+            "is_watched": false,
+            "watch_state": "is_not_watched"
+          },
+          "default_thumbnail": {
+            "url": "https://image.mux.com/eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c/thumbnail.jpg?token=<JWT_REDACTED>"
+          },
+          "storyboard": {
+            "vtt_url": "https://image.mux.com/eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c/storyboard.vtt?token=<JWT_REDACTED>",
+            "json_url": "https://image.mux.com/eMbwaEV5Ei2aNzpOCn38OGv4CrUac01RY402FiCmCaA01c/storyboard.json?token=<JWT_REDACTED>"
+          },
+          "video_issues": {},
+          "state": "ready",
+          "media_id": 216607212,
+          "closed_captions_enabled": true
+        },
+        "download_url": "https://c10.patreonusercontent.com/4/patreon-media/p/post/86262355/9eda8967a99f477eb90ef6beabc31369/eyJhIjoxLCJwIjoxfQ%3D%3D/1?token-hash=<REDACTED>&token-time=<REDACTED>",
+        "file_name": null,
+        "mimetype": "application/x-mpegURL",
+        "state": "ready"
+      }
+    }
+  ],
+  "links": {
+    "self": "https://www.patreon.com/api/posts/86262355"
+  }
+}

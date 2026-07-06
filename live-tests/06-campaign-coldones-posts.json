@@ -1,0 +1,11 @@
+{
+  "data": [],
+  "meta": {
+    "pagination": {
+      "total": 0,
+      "cursors": {
+        "next": null
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "id": "1335234",
+      "type": "campaign",
+      "attributes": {
+        "creation_name": "creating Subarashii",
+        "is_nsfw": false,
+        "name": "Cheshire",
+        "patron_count": 0,
+        "url": "https://www.patreon.com/Subarashii",
+        "vanity": "Subarashii"
+      }
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 1,
+      "cursors": {
+        "next": null
+      }
+    }
+  }
+}

@@ -1,0 +1,115 @@
+name: PatreonTV
+
+# Regenerate the .xcodeproj with:  brew install xcodegen && xcodegen generate
+options:
+  bundleIdPrefix: com.patreontv
+  deploymentTarget:
+    tvOS: "17.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  # Modern Xcode folder-sync: adding .swift files to disk automatically includes them.
+  # Requires Xcode 15+.
+  minimumXcodeGenVersion: "2.42.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Do not enable Bitcode — dead as of Xcode 15.
+
+targets:
+  PatreonTV:
+    type: application
+    platform: tvOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PatreonTV/Sources
+      - path: PatreonTV/Resources
+        buildPhase: resources
+    resources:
+      - PatreonTV/Resources/Assets.xcassets
+    info:
+      path: PatreonTV/Info.plist
+      properties:
+        CFBundleDisplayName: PatreonTV
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Allow the Patreon login WKWebView to load patreon.com (already HTTPS,
+        # but we set explicit ATS documentation for reviewers).
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+          NSExceptionDomains:
+            patreon.com:
+              NSIncludesSubdomains: true
+              NSExceptionRequiresForwardSecrecy: true
+              NSExceptionMinimumTLSVersion: "TLSv1.2"
+        # Top Shelf extension (added later)
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIRequiredDeviceCapabilities:
+          - arm64
+        UILaunchScreen: {}
+    entitlements:
+      path: PatreonTV/PatreonTV.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.patreontv.PatreonTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.patreontv.PatreonTV
+        TARGETED_DEVICE_FAMILY: "3"   # 3 = Apple TV
+        INFOPLIST_KEY_CFBundleDisplayName: PatreonTV
+        # tvOS asset catalog entries
+        ASSETCATALOG_COMPILER_APPICON_NAME: App Icon & Top Shelf Image
+        ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME: LaunchImage
+        SUPPORTS_MACCATALYST: NO
+    dependencies:
+      # Nuke — image cache. Confirmed tvOS support in Package.swift.
+      - package: Nuke
+        product: Nuke
+      - package: Nuke
+        product: NukeUI
+
+  PatreonTVTests:
+    type: bundle.unit-test
+    platform: tvOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PatreonTVTests
+    dependencies:
+      - target: PatreonTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.patreontv.PatreonTVTests
+        TARGETED_DEVICE_FAMILY: "3"
+
+packages:
+  Nuke:
+    url: https://github.com/kean/Nuke
+    from: "12.8.0"
+
+schemes:
+  PatreonTV:
+    build:
+      targets:
+        PatreonTV: all
+        PatreonTVTests: [test]
+    run:
+      config: Debug
+      commandLineArguments:
+        "-com.apple.CoreData.SQLDebug 0": true
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - PatreonTVTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

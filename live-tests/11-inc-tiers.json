@@ -1,0 +1,13 @@
+{
+  "errors": [
+    {
+      "id": "bb4b944a-e6e4-4927-a34e-74165b09e211",
+      "code_name": "ParameterInvalidOnType",
+      "code": 1,
+      "title": "Invalid value for parameter 'include'.",
+      "detail": "Invalid parameter for 'include' on type post: ['tiers'].",
+      "status": "400",
+      "challenge_metadata": null
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "data": {
+    "id": "8462900",
+    "type": "user",
+    "attributes": {}
+  },
+  "links": {
+    "self": "https://www.patreon.com/api/oauth2/v2/user/8462900"
+  }
+}

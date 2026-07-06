@@ -1,0 +1,13 @@
+{
+  "errors": [
+    {
+      "id": "4f77865d-380b-49ab-9e5a-1d260e83ae0e",
+      "code_name": "ParameterInvalidOnType",
+      "code": 1,
+      "title": "Invalid value for parameter 'include'.",
+      "detail": "Invalid parameter for 'include' on type post: ['attachments'].",
+      "status": "400",
+      "challenge_metadata": null
+    }
+  ]
+}

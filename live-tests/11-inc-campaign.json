@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "id": "b3c81c67-8ae9-41f9-bc5b-627212a776f8",
+      "code_name": "ViewForbidden",
+      "code": 6,
+      "title": "You do not have permission to view this post.",
+      "detail": "You do not have permission to view post with id 162743341.",
+      "status": "403"
+    }
+  ]
+}
