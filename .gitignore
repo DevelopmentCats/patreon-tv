@@ -33,6 +33,9 @@ apps/tvos/fastlane/test_output
 # Node
 # ============================================================
 node_modules/
+
+# Wrangler local state (created when running wrangler from the repo root)
+.wrangler/
 harness/tokens/
 harness/dumps/
 harness/.env
