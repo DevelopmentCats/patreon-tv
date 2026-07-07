@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  HTTP client for Patreon's internal web API (`https://www.patreon.com/api/*`).
-//  Authenticates via the `session_id` cookie captured from PatreonLoginWebView.
+//  Authenticates via the `session_id` cookie submitted during sign-in.
 //
 //  API endpoint reference: docs/patreon-internal-api-openapi.yaml
 //  Live-probe evidence:    docs/patreon-research.md §14
@@ -33,6 +33,10 @@ final class PatreonClient {
     /// The Patreon session cookie. Set by AuthStore after sign-in.
     var sessionID: String?
 
+    /// The signed-in user's numeric id, cached from `current_user` — needed for
+    /// the `members` filter.
+    private(set) var currentUserID: String?
+
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpAdditionalHeaders = [
@@ -53,6 +57,13 @@ final class PatreonClient {
 
     /// GET /api/current_user — the identity + campaigns bootstrap.
     func currentUser() async throws -> PatreonUser {
+        try await currentUserDocument().data
+    }
+
+    /// Full `/api/current_user` document with `memberships.campaign` includes.
+    /// The dedicated `/current_user/memberships` path 404s on the internal API;
+    /// memberships live in this document's `included` array instead.
+    func currentUserDocument() async throws -> SingleResource<PatreonUser> {
         let url = baseURL.appending(path: "current_user")
             .appending(queryItems: [
                 URLQueryItem(name: "include", value: "memberships.campaign"),
@@ -61,7 +72,46 @@ final class PatreonClient {
                 URLQueryItem(name: "fields[member]", value: "patron_status,currently_entitled_amount_cents,is_free_trial,is_gifted"),
             ])
         let (data, _) = try await get(url)
-        return try JSONAPIDecoder.decode(SingleResource<PatreonUser>.self, from: data).data
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonUser>.self, from: data)
+        currentUserID = doc.data.id
+        return doc
+    }
+
+    /// GET /api/members?filter[user_id]=… — every creator relationship the user
+    /// has (active patron, free follow, or lapsed), with campaigns sideloaded.
+    /// This is the direct source for the Creators list; callers filter to
+    /// `isCurrentRelationship`.
+    func members() async throws -> MultiResource<Membership> {
+        let uid: String
+        if let cached = currentUserID {
+            uid = cached
+        } else {
+            uid = try await currentUser().id   // populates currentUserID
+        }
+        let url = baseURL.appending(path: "members")
+            .appending(queryItems: [
+                URLQueryItem(name: "filter[user_id]", value: uid),
+                URLQueryItem(name: "include", value: "campaign"),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,url,creation_name,patron_count,is_nsfw,image_url,image_small_url,avatar_photo_url,cover_photo_url,summary"),
+                URLQueryItem(name: "fields[member]", value: "patron_status,is_free_member,currently_entitled_amount_cents"),
+                URLQueryItem(name: "page[count]", value: "200"),
+            ])
+        let (data, _) = try await get(url)
+        return try JSONAPIDecoder.decode(MultiResource<Membership>.self, from: data)
+    }
+
+    /// GET /api/pledges — the user's active paid subscriptions, with campaigns
+    /// sideloaded. Unlike `current_user`'s `memberships` relationship (empty),
+    /// this includes hidden subscriptions.
+    func pledges() async throws -> MultiResource<Pledge> {
+        let url = baseURL.appending(path: "pledges")
+            .appending(queryItems: [
+                URLQueryItem(name: "include", value: "campaign"),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,url,creation_name,patron_count,is_nsfw,image_url,image_small_url,avatar_photo_url,cover_photo_url,summary"),
+                URLQueryItem(name: "fields[pledge]", value: "amount_cents,created_at"),
+            ])
+        let (data, _) = try await get(url)
+        return try JSONAPIDecoder.decode(MultiResource<Pledge>.self, from: data)
     }
 
     /// GET /api/stream — the fan's home feed of posts from creators they follow.
@@ -70,7 +120,7 @@ final class PatreonClient {
         var qi: [URLQueryItem] = [
             URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
             URLQueryItem(name: "fields[post]", value: PostFields.default),
-            URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url"),
+            URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,cover_photo_url,url,creation_name,patron_count,is_nsfw"),
             URLQueryItem(name: "fields[media]", value: MediaFields.default),
             URLQueryItem(name: "page[count]", value: String(limit)),
         ]
@@ -82,17 +132,16 @@ final class PatreonClient {
         return try JSONAPIDecoder.decode(Page<Post>.self, from: data)
     }
 
-    /// GET /api/current_user/memberships — creators the user supports.
-    /// Returns the full document so callers can join member → campaign.
+    /// Creators the user supports — parsed from `/api/current_user` includes.
     func memberships() async throws -> MultiResource<Membership> {
-        let url = baseURL.appending(path: "current_user/memberships")
-            .appending(queryItems: [
-                URLQueryItem(name: "include", value: "campaign"),
-                URLQueryItem(name: "fields[campaign]", value: "name,vanity,creation_name,summary,patron_count,is_nsfw,image_url,image_small_url,cover_photo_url,url"),
-                URLQueryItem(name: "fields[member]", value: "patron_status,currently_entitled_amount_cents,is_gifted,is_free_trial,last_charge_status,last_charge_date,lifetime_support_cents"),
-            ])
-        let (data, _) = try await get(url)
-        return try JSONAPIDecoder.decode(MultiResource<Membership>.self, from: data)
+        let doc = try await currentUserDocument()
+        var members: [Membership] = []
+        for inc in doc.included ?? [] {
+            if case .member(let m) = inc {
+                members.append(m)
+            }
+        }
+        return MultiResource(data: members, included: doc.included, links: nil)
     }
 
     /// GET /api/campaigns/{id} — one campaign's public info.
@@ -141,19 +190,17 @@ final class PatreonClient {
         return try JSONAPIDecoder.decode(SingleResource<Post>.self, from: data)
     }
 
-    /// GET /api/search — Patreon's search endpoint (internal).
-    /// TODO: shape unverified — spec says path is /api/search, need to probe.
-    func search(query: String, limit: Int = 20) async throws -> Page<Post> {
+    /// GET /api/search — Patreon's internal search. Returns `campaign-document`
+    /// resources (creators) with all fields inline; there is no `included` array.
+    func searchCreators(query: String, limit: Int = 20) async throws -> [CampaignSearchResult] {
         let url = baseURL.appending(path: "search")
             .appending(queryItems: [
                 URLQueryItem(name: "q", value: query),
-                URLQueryItem(name: "include", value: "user,campaign"),
-                URLQueryItem(name: "fields[post]", value: PostFields.default),
-                URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,url"),
                 URLQueryItem(name: "page[count]", value: String(limit)),
             ])
         let (data, _) = try await get(url)
-        return try JSONAPIDecoder.decode(Page<Post>.self, from: data)
+        struct SearchEnvelope: Decodable { let data: [CampaignSearchResult] }
+        return try JSONAPIDecoder.decode(SearchEnvelope.self, from: data).data
     }
 
     // MARK: - Transport
@@ -205,7 +252,7 @@ enum PatreonError: Error, LocalizedError {
         switch self {
         case .unauthorized: "Your session has expired. Please sign in again."
         case .forbidden: "You don't have permission to view this content."
-        case .notFound: "This post could not be found."
+        case .notFound: "This page could not be found."
         case .rateLimited(let s): "Patreon is rate-limiting us. Try again in \(Int(s))s."
         case .http(let status, _): "Patreon returned HTTP \(status)."
         case .badResponse: "Unexpected response from Patreon."

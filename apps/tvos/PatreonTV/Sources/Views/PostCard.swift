@@ -56,7 +56,7 @@ struct PostCard: View {
 
     @ViewBuilder
     private var posterImage: some View {
-        if let url = post.attributes.thumbnailURL ?? post.attributes.metaImageURL {
+        if let url = post.attributes.posterImageURL {
             LazyImage(url: url) { state in
                 if let image = state.image {
                     image

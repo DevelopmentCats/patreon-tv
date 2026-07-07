@@ -14,55 +14,93 @@ import SwiftUI
 struct HomeView: View {
 
     @State private var vm = HomeViewModel()
+    @State private var prefs = ContentPreferences.shared
+    @Environment(DeepLinkRouter.self) private var router
+
+    /// Applies the mature-content gate to a shelf's posts based on each post's
+    /// owning campaign. Keeps posts whose campaign is unknown (assumed safe).
+    private func visible(_ posts: [Post]) -> [Post] {
+        if prefs.showMatureContent { return posts }
+        return posts.filter { vm.campaign(for: $0)?.attributes.isNSFW != true }
+    }
+
+    /// The hero fallback, suppressed when the top post is from a hidden NSFW
+    /// creator so mature art doesn't flash before the user focuses a card.
+    private var heroFallback: FocusedPoster? {
+        guard let fb = vm.heroFallback else { return nil }
+        if prefs.showMatureContent { return fb }
+        if let first = vm.homeFeed.first, vm.campaign(for: first)?.attributes.isNSFW == true {
+            return nil
+        }
+        return fb
+    }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch vm.state {
-                case .idle, .loading:
-                    ProgressView()
-                        .controlSize(.large)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .empty:
-                    EmptyFeedView()
-                case .loaded:
-                    loadedContent
-                case .error(let message):
-                    ErrorView(message: message) { Task { await vm.reload() } }
-                }
+        // No NavigationStack here — HomeShell already wraps the Home tab in one.
+        // Nesting a second NavigationStack trapped upward focus so the tab bar
+        // became unreachable once focus moved into the shelves.
+        Group {
+            switch vm.state {
+            case .idle, .loading:
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .empty:
+                EmptyFeedView()
+            case .loaded:
+                loadedContent
+            case .error(let message):
+                ErrorView(message: message) { Task { await vm.reload() } }
             }
-            .task { await vm.load() }
-            .background(PatreonColors.background.ignoresSafeArea())
         }
+        .task { await vm.load() }
+        .background(PatreonColors.background.ignoresSafeArea())
     }
 
     @ViewBuilder
     private var loadedContent: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: 60, pinnedViews: []) {
-                HeroBand(fallback: vm.heroFallback)
-                    .padding(.bottom, -80)   // Let the first shelf overlap the gradient
+        let continueWatching = visible(vm.continueWatching)
+        let feed = visible(vm.homeFeed)
 
-                if !vm.continueWatching.isEmpty {
+        // Plain VStack (not Lazy): tvOS won't render/focus below-the-fold
+        // children of a LazyVStack. Shelves inside stay lazy via LazyHStack.
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 40) {
+                // Canonical tvOS hero: takes ~80% of the viewport with a
+                // .focusSection() so the first shelf peeks below and focus can
+                // travel back up through it to the tab bar.
+                HeroBand(fallback: heroFallback)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // A visible, focusable "Play featured" row between the hero and
+                // the shelves. It's the focus stepping-stone that lets "up" from
+                // the first shelf reach here, then continue to the tab bar.
+                if let featured = heroFallback {
+                    Button {
+                        router.pending = .post(id: featured.postID, autoplay: true)
+                    } label: {
+                        Label("Play", systemImage: "play.fill")
+                            .font(.title3.weight(.semibold))
+                            .padding(.horizontal, 44)
+                            .padding(.vertical, 16)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(PatreonColors.brand)
+                    .padding(.leading, 60)
+                }
+
+                if !continueWatching.isEmpty {
                     Shelf(
                         title: "Continue Watching",
-                        posts: vm.continueWatching,
+                        posts: continueWatching,
                         campaignFor: { vm.campaign(for: $0) }
                     )
                 }
 
-                if !vm.newFromCreators.isEmpty {
+                if !feed.isEmpty {
                     Shelf(
                         title: "New from Your Creators",
-                        posts: vm.newFromCreators,
-                        campaignFor: { vm.campaign(for: $0) }
-                    )
-                }
-
-                if !vm.homeFeed.isEmpty {
-                    Shelf(
-                        title: "Home Feed",
-                        posts: vm.homeFeed,
+                        posts: feed,
                         campaignFor: { vm.campaign(for: $0) },
                         onNearEnd: { post in
                             Task { await vm.loadMoreIfNeeded(current: post) }

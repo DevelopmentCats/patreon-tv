@@ -9,6 +9,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "dev:pairing": "bash scripts/dev-pairing.sh",
     "deploy": "astro build && wrangler pages deploy dist --project-name patreon-tv"
   },
   "dependencies": {

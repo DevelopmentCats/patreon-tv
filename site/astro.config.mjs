@@ -8,7 +8,8 @@
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  site: "https://patreontv.app",
+  // Canonical site origin. Override at build time with SITE_URL for previews.
+  site: process.env.SITE_URL || "https://patreontv.com",
   output: "static",
   compressHTML: true,
   build: {

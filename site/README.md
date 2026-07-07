@@ -14,7 +14,8 @@ Built with [Astro](https://astro.build) and deploys to
 | `/support` | FAQ + contact — required for App Store listing (Support URL field) |
 | `/post/:id` | Deep-link fallback for `patreontv://post/<id>` shares |
 | `/creator/:id` | Deep-link fallback for `patreontv://creator/<id>` shares |
-| `/api/health` | JSON health endpoint for uptime monitoring |
+| `/link/:code` | Device-link sign-in portal (pair Apple TV with Patreon) |
+| `/api/pairing/*` | Pairing API — create code, poll status, complete OAuth |
 | `/.well-known/apple-app-site-association` | Universal Links manifest (needs Team ID) |
 
 ## Local dev
@@ -26,6 +27,35 @@ npm run dev
 ```
 
 Open http://localhost:4321.
+
+### Device-link sign-in (local dev — iPhone + Apple TV Simulator)
+
+Run the pairing service on your **LAN IP** so your iPhone can scan the QR code.
+The dev script auto-detects your Mac's IP and updates the tvOS DEBUG config.
+
+```bash
+cd site
+npm install
+npm run dev:pairing
+```
+
+This binds `0.0.0.0:8788` and sets `PAIRING_PUBLIC_ORIGIN` to e.g.
+`http://192.168.1.148:8788`. Rebuild/run the tvOS app in Xcode (DEBUG).
+
+On your iPhone (same Wi‑Fi): scan the QR on the TV, or open the link shown.
+Use **Having trouble? Connect manually** to paste your `session_id` cookie.
+
+Override the detected IP: `PAIRING_LAN_IP=10.0.0.5 npm run dev:pairing`
+
+For fully automated OAuth, add to `site/.dev.vars` (see script output):
+
+```
+PATREON_CLIENT_ID=...
+PATREON_CLIENT_SECRET=...
+PATREON_REDIRECT_URI=http://<your-lan-ip>:8788/api/pairing/oauth/callback
+```
+
+| `/api/health` | JSON health endpoint for uptime monitoring |
 
 ## Deploy to Cloudflare Pages
 

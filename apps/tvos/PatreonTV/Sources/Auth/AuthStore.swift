@@ -60,7 +60,7 @@ final class AuthStore {
         }
     }
 
-    /// Called by SignInView after WKWebView captures a session_id cookie.
+    /// Called by SignInView after the user submits a session_id cookie.
     func completeSignIn(sessionID: String) async {
         keychain.set(sessionID, forKey: sessionKey)
         PatreonClient.shared.sessionID = sessionID

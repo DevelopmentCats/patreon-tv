@@ -3,9 +3,17 @@ compatibility_date = "2026-06-01"
 pages_build_output_dir = "./dist"
 
 # Cloudflare Pages preview builds live at patreon-tv.pages.dev
-# Production custom domain (once you attach it): patreontv.app
+# Production custom domain (once you attach it): patreontv.com
 
-# Environment variables (set via the Cloudflare dashboard, NOT here)
+[[kv_namespaces]]
+binding = "PAIRING"
+id = "00000000000000000000000000000000"   # replace in Cloudflare dashboard for production
+preview_id = "00000000000000000000000000000000"
+
+# Environment variables (set via the Cloudflare dashboard or `wrangler pages secret put`)
 # ------------------------------------------------------------------
 # CONTACT_EMAIL           — support email shown on /contact
-# PATREON_LOGIN_ORIGIN    — reserved for future pairing service (unused today)
+# PATREON_CLIENT_ID       — OAuth client id from patreon.com/portal/registration/register-clients
+# PATREON_CLIENT_SECRET   — OAuth client secret
+# PATREON_REDIRECT_URI    — https://patreontv.com/api/pairing/oauth/callback (or local dev URL)
+# PAIRING_PUBLIC_ORIGIN   — https://patreontv.com (or http://127.0.0.1:8788 for local dev)

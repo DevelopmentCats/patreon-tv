@@ -69,6 +69,15 @@ struct HomeShell: View {
         }
         .background(PatreonColors.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .overlay(alignment: .topLeading) {
+            Image("PTVMark")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 52)
+                .padding(.leading, 60)
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+        }
         .onChange(of: router.pending) { _, pending in
             guard let pending else { return }
             selectedTab = .home

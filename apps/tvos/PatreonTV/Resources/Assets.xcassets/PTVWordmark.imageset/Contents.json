@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "ptv_wordmark.png",
+      "idiom" : "tv",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "ptv_wordmark@2x.png",
+      "idiom" : "tv",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

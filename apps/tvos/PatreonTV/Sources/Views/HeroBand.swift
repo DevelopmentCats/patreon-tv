@@ -48,7 +48,9 @@ struct HeroBand: View {
                 .padding(.horizontal, 60)
                 .padding(.bottom, 60)
         }
-        .frame(height: 640)
+        // Fixed height leaves the first shelf peeking below the fold on tvOS's
+        // 1080pt-tall screen (the canonical hero + shelves layout).
+        .frame(height: 480)
         .frame(maxWidth: .infinity)
         .clipped()
         .onAppear { displayed = fallback }
@@ -99,7 +101,8 @@ struct HeroBand: View {
                     Text(title)
                         .font(.system(size: 64, weight: .bold))
                         .foregroundStyle(.white)
-                        .lineLimit(2)
+                        .lineLimit(1)               // never wrap into the first shelf
+                        .minimumScaleFactor(0.6)    // shrink long titles instead
                         .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
                 }
                 if let creator = d.creatorName {

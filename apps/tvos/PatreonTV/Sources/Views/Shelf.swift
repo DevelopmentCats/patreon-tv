@@ -64,7 +64,7 @@ struct Shelf: View {
         return FocusedPoster(
             postID: post.id,
             title: post.attributes.title,
-            heroImageURL: post.attributes.metaImageURL ?? post.attributes.thumbnailURL,
+            heroImageURL: post.attributes.posterImageURL,
             creatorName: campaign?.attributes.name,
             campaignID: campaign?.id ?? post.relationships?.campaign?.data?.id,
             publishedAt: post.attributes.publishedAt,
