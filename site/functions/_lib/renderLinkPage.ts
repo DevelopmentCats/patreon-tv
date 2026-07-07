@@ -103,13 +103,6 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled, codeSta
       border-radius: 20px;
       padding: 2rem;
     }
-    .eyebrow {
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-size: 0.75rem;
-      opacity: 0.6;
-      margin: 0 0 0.5rem;
-    }
     h1 { margin: 0 0 1.5rem; font-size: 1.75rem; }
     .code-label { margin: 0; opacity: 0.65; }
     .code {
@@ -171,7 +164,7 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled, codeSta
 <body>
   <main>
     <div class="card">
-      <p class="eyebrow">PatreonTV</p>
+      <img src="/brand/wordmark.png" alt="PatreonTV" style="height: 28px; width: auto; margin-bottom: 1rem;" />
       <h1>Connect your Apple TV</h1>
       <p class="code-label">Pairing code</p>
       <p class="code">${escapeHTML(displayCode)}</p>
