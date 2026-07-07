@@ -25,7 +25,6 @@ final class HomeViewModel {
 
     private(set) var state: ViewState = .idle
     private(set) var homeFeed: [Post] = []
-    private(set) var newFromCreators: [Post] = []
     private(set) var continueWatching: [Post] = []
 
     /// Post ID → Campaign lookup, populated from the included array.
@@ -38,7 +37,7 @@ final class HomeViewModel {
         return FocusedPoster(
             postID: post.id,
             title: post.attributes.title,
-            heroImageURL: post.attributes.metaImageURL ?? post.attributes.thumbnailURL,
+            heroImageURL: post.attributes.posterImageURL,
             creatorName: campaign?.attributes.name,
             campaignID: campaign?.id,
             publishedAt: post.attributes.publishedAt,
@@ -62,7 +61,6 @@ final class HomeViewModel {
             let page = try await PatreonClient.shared.homeFeed(limit: 30)
             homeFeed = page.data
             nextCursor = page.nextCursor
-            newFromCreators = Array(page.data.prefix(12))
             indexCampaigns(from: page.included ?? [])
             rebuildContinueWatching()
             writeTopShelfSnapshot()
@@ -109,7 +107,7 @@ final class HomeViewModel {
                 postID: post.id,
                 title: post.attributes.title ?? "Untitled",
                 creator: campaign(for: post)?.attributes.name,
-                imageURL: post.attributes.metaImageURL ?? post.attributes.thumbnailURL,
+                imageURL: post.attributes.posterImageURL,
                 publishedAt: post.attributes.publishedAt
             )
         }

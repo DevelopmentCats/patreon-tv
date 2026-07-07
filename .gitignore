@@ -30,15 +30,9 @@ apps/tvos/fastlane/screenshots/**/*.png
 apps/tvos/fastlane/test_output
 
 # ============================================================
-# Go
+# Node
 # ============================================================
-services/pairing/pairing-service
-services/pairing/*.exe
-
-# ============================================================
-# Node harness
-# ============================================================
-harness/node_modules/
+node_modules/
 harness/tokens/
 harness/dumps/
 harness/.env

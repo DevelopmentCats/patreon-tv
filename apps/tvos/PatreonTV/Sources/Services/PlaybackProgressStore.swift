@@ -33,11 +33,14 @@ final class PlaybackProgressStore {
     private let key = "playback_progress_v1"
     private let maxEntries = 200
     private let retention: TimeInterval = 60 * 60 * 24 * 90  // 90 days
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
 
     private var records: [String: PlaybackProgress] = [:]
 
-    private init() {
+    /// Injectable for tests — pass `UserDefaults(suiteName:)` so test runs
+    /// never touch the real store on a dev device.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         load()
     }
 

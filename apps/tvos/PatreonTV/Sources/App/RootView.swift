@@ -33,9 +33,11 @@ struct SplashView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            Text("PatreonTV")
-                .font(.system(size: 96, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+            Image("PTVWordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 180)
+                .accessibilityLabel("PatreonTV")
         }
     }
 }

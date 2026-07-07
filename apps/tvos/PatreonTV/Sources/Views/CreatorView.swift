@@ -32,39 +32,82 @@ struct CreatorView: View {
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
+    private let columns = [GridItem(.adaptive(minimum: 400, maximum: 480), spacing: 32)]
+
     @ViewBuilder
     private var content: some View {
         ScrollView(.vertical, showsIndicators: false) {
+            // VStack (not Lazy): on tvOS a LazyVStack doesn't render below-the-fold
+            // children, so the posts grid under the tall hero wouldn't exist and
+            // focus couldn't move down into it. The grid itself stays LazyVGrid.
             VStack(alignment: .leading, spacing: 40) {
+                // No .focusSection() on the (non-focusable) hero — it would
+                // intercept "up" and dead-end. Focus flows up to the Posts header.
                 hero
-                    .padding(.bottom, -80)
-
-                if !vm.posts.isEmpty {
-                    Shelf(
-                        title: "Latest",
-                        posts: vm.posts,
-                        campaignFor: { _ in vm.campaign },
-                        onNearEnd: { post in
-                            Task { await vm.loadMore(campaignID: campaignID, current: post) }
-                        }
-                    )
-                }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let summary = vm.campaign?.attributes.summary, !summary.isEmpty {
                     aboutSection(summary: summary)
                 }
 
-                Spacer(minLength: 60)
+                postsHeader
+                postsGrid
+                    .focusSection()
             }
+            .padding(.bottom, 60)
         }
         .scrollClipDisabled()
+    }
+
+    private var postsHeader: some View {
+        HStack {
+            Text("Posts")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(PatreonColors.primaryText)
+            Spacer()
+            // Destination-style link is deliberate here: the payload (the
+            // already-loaded posts array) isn't Hashable/Codable, so it can't
+            // be a DeepLinkDestination value. This push is never mixed with
+            // programmatic path writes, so it's safe.
+            NavigationLink {
+                CreatorPostSearchView(posts: vm.posts, campaign: vm.campaign)
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.title3.weight(.semibold))
+                    .padding(14)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("Search this creator's posts")
+        }
+        .padding(.horizontal, 60)
+        // Full-width focus target: lets "up" from any grid card (incl. left
+        // columns) reliably reach the search button, per Apple's tvOS guidance.
+        .focusSection()
+    }
+
+    @ViewBuilder
+    private var postsGrid: some View {
+        LazyVGrid(columns: columns, spacing: 40) {
+            ForEach(vm.posts) { post in
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                    PostCard(post: post, campaign: vm.campaign)
+                }
+                .buttonStyle(.card)
+                .onAppear {
+                    // Keep the feed loading forever as you scroll.
+                    Task { await vm.loadMore(campaignID: campaignID, current: post) }
+                }
+            }
+        }
+        .padding(.horizontal, 60)
     }
 
     @ViewBuilder
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
             heroImage
-                .frame(height: 640)
+                .frame(height: 500)
                 .frame(maxWidth: .infinity)
                 .clipped()
 
@@ -73,7 +116,7 @@ struct CreatorView: View {
                 startPoint: .bottom,
                 endPoint: .top
             )
-            .frame(height: 640)
+            .frame(height: 500)
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 12) {
@@ -86,8 +129,11 @@ struct CreatorView: View {
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
 
-                if let creation = vm.campaign?.attributes.creationName {
-                    Text("Is creating \(creation)")
+                if let creation = vm.campaign?.attributes.creationName,
+                   !creation.isEmpty {
+                    // creation_name is already a full phrase (e.g. "creating
+                    // YouTube videos…" / "Creating Drunk Content"); show as-is.
+                    Text(creation)
                         .font(.title3)
                         .foregroundStyle(.white.opacity(0.85))
                 }
@@ -138,6 +184,7 @@ struct CreatorView: View {
             Text(HTMLRenderer.stripToPlainText(summary))
                 .font(.body)
                 .foregroundStyle(PatreonColors.secondaryText)
+                .lineLimit(3)
                 .frame(maxWidth: 1400, alignment: .leading)
         }
         .padding(.horizontal, 60)
@@ -146,6 +193,51 @@ struct CreatorView: View {
     private func formatCents(_ cents: Int) -> String {
         let dollars = Double(cents) / 100.0
         return String(format: "%.2f", dollars)
+    }
+}
+
+/// A pushed search screen for one creator's already-loaded posts. Local filter
+/// (Patreon's campaign-posts API has no server-side search). Press Menu to go back.
+private struct CreatorPostSearchView: View {
+
+    let posts: [Post]
+    let campaign: Campaign?
+
+    @State private var query: String = ""
+
+    private let columns = [GridItem(.adaptive(minimum: 400, maximum: 480), spacing: 32)]
+
+    private var results: [Post] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return posts }
+        return posts.filter { post in
+            (post.attributes.title?.lowercased().contains(q) ?? false)
+                || (post.attributes.teaser?.lowercased().contains(q) ?? false)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            if results.isEmpty {
+                Text(query.isEmpty ? "Type to search" : "No posts match \"\(query)\"")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 400)
+            } else {
+                LazyVGrid(columns: columns, spacing: 40) {
+                    ForEach(results) { post in
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                            PostCard(post: post, campaign: campaign)
+                        }
+                        .buttonStyle(.card)
+                    }
+                }
+                .padding(60)
+            }
+        }
+        .scrollClipDisabled()
+        .searchable(text: $query, prompt: "Search \(campaign?.attributes.name ?? "posts")")
+        .background(PatreonColors.background.ignoresSafeArea())
     }
 }
 

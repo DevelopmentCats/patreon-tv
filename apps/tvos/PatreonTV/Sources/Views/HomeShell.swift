@@ -8,10 +8,10 @@
 //  Follows tvOS design rules TAB-01 (top tab bar), TAB-03 (3–7 tabs),
 //  TAB-04 (text labels), TAB-06 (persist selection).
 //
-//  KNOWN LIMITATION: shelves currently use destination-style NavigationLinks
-//  (`NavigationLink { PostDetailView(...) }`), while deep-link injection uses
-//  value-based NavigationStack path. Migrate all navigation to value-based
-//  once we've verified this works on real hardware.
+//  Navigation is value-based throughout: every post/creator link pushes a
+//  DeepLinkDestination, and each tab's NavigationStack registers the shared
+//  destination table via .appNavigationDestinations(). Deep links inject into
+//  the Home tab's path.
 //
 
 import SwiftUI
@@ -43,14 +43,7 @@ struct HomeShell: View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
                 HomeView()
-                    .navigationDestination(for: DeepLinkDestination.self) { dest in
-                        switch dest {
-                        case .post(let id, _):
-                            PostDetailView(postID: id)
-                        case .creator(let id):
-                            CreatorView(campaignID: id, membership: nil)
-                        }
-                    }
+                    .appNavigationDestinations()
             }
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
@@ -69,6 +62,15 @@ struct HomeShell: View {
         }
         .background(PatreonColors.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .overlay(alignment: .topLeading) {
+            Image("PTVMark")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 52)
+                .padding(.leading, 60)
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+        }
         .onChange(of: router.pending) { _, pending in
             guard let pending else { return }
             selectedTab = .home
@@ -88,4 +90,25 @@ struct HomeShell: View {
 enum DeepLinkDestination: Hashable, Codable {
     case post(id: String, autoplay: Bool)
     case creator(id: String)
+}
+
+/// Shared destination table. Every NavigationStack in the app registers this
+/// so value-based links resolve identically in all tabs.
+struct AppNavigationDestinations: ViewModifier {
+    func body(content: Content) -> some View {
+        content.navigationDestination(for: DeepLinkDestination.self) { dest in
+            switch dest {
+            case .post(let id, let autoplay):
+                PostDetailView(postID: id, autoplay: autoplay)
+            case .creator(let id):
+                CreatorView(campaignID: id, membership: nil)
+            }
+        }
+    }
+}
+
+extension View {
+    func appNavigationDestinations() -> some View {
+        modifier(AppNavigationDestinations())
+    }
 }

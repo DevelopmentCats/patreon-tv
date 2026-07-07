@@ -2,18 +2,30 @@
 //  SearchView.swift
 //  PatreonTV
 //
-//  Post search using Patreon's internal /api/search endpoint.
-//  Uses SwiftUI's .searchable, which on tvOS provides an on-screen keyboard
-//  and Siri dictation support (REMOTE-06 in the tvOS design skill).
+//  Creator search using Patreon's internal /api/search endpoint, which returns
+//  `campaign-document` resources (creators). Uses SwiftUI's .searchable, which
+//  on tvOS provides an on-screen keyboard and Siri dictation (REMOTE-06).
 //
 
+import NukeUI
 import SwiftUI
 import os
 
 struct SearchView: View {
 
+    /// Optional starting query (used by the capture gallery to show results).
+    var initialQuery: String = ""
+
     @State private var vm = SearchViewModel()
+    @State private var prefs = ContentPreferences.shared
     @State private var query: String = ""
+
+    /// Results after applying the mature-content gate.
+    private var visibleResults: [CampaignSearchResult] {
+        prefs.showMatureContent
+            ? vm.results
+            : vm.results.filter { $0.attributes.isNSFW != true }
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,7 +36,7 @@ struct SearchView: View {
                 case .loading:
                     ProgressView().controlSize(.large)
                 case .loaded:
-                    if vm.results.isEmpty {
+                    if visibleResults.isEmpty {
                         noResults
                     } else {
                         resultsGrid
@@ -33,11 +45,19 @@ struct SearchView: View {
                     ErrorView(message: m) { Task { await vm.search(query: query) } }
                 }
             }
-            .searchable(text: $query, prompt: "Search posts")
+            .searchable(text: $query, prompt: "Search creators")
             .onChange(of: query) { _, newValue in
-                Task { await vm.debouncedSearch(query: newValue) }
+                vm.debouncedSearch(query: newValue)
+            }
+            .task {
+                // Seed a query on first appear (capture gallery); triggers search.
+                if query.isEmpty {
+                    let seed = initialQuery.isEmpty ? (GalleryConfig.query ?? "") : initialQuery
+                    if !seed.isEmpty { query = seed }
+                }
             }
             .background(PatreonColors.background.ignoresSafeArea())
+            .appNavigationDestinations()
         }
     }
 
@@ -46,10 +66,10 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 80))
                 .foregroundStyle(PatreonColors.secondaryText)
-            Text("Search Patreon")
+            Text("Find creators")
                 .font(.title2)
                 .foregroundStyle(PatreonColors.primaryText)
-            Text("Find posts across your creators and beyond.")
+            Text("Search Patreon for creators to watch.")
                 .foregroundStyle(PatreonColors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -60,7 +80,7 @@ struct SearchView: View {
             Image(systemName: "exclamationmark.magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundStyle(PatreonColors.secondaryText)
-            Text("No results for \"\(query)\"")
+            Text("No creators for \"\(query)\"")
                 .font(.title3)
                 .foregroundStyle(PatreonColors.primaryText)
         }
@@ -70,14 +90,12 @@ struct SearchView: View {
     private var resultsGrid: some View {
         ScrollView {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 420, maximum: 480), spacing: 32)],
+                columns: [GridItem(.adaptive(minimum: 320, maximum: 380), spacing: 40)],
                 spacing: 40
             ) {
-                ForEach(vm.results) { post in
-                    NavigationLink {
-                        PostDetailView(postID: post.id)
-                    } label: {
-                        PostCard(post: post, campaign: vm.campaign(for: post))
+                ForEach(visibleResults) { result in
+                    NavigationLink(value: DeepLinkDestination.creator(id: result.campaignID)) {
+                        SearchCreatorCard(result: result)
                     }
                     .buttonStyle(.card)
                 }
@@ -88,6 +106,50 @@ struct SearchView: View {
     }
 }
 
+struct SearchCreatorCard: View {
+
+    let result: CampaignSearchResult
+
+    private let cardWidth: CGFloat = 340
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            LazyImage(url: result.attributes.avatarPhotoURL) { state in
+                if let img = state.image {
+                    img.resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    ZStack {
+                        PatreonColors.cardSurface
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(PatreonColors.tertiaryText)
+                    }
+                }
+            }
+            .frame(width: cardWidth, height: cardWidth)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(result.attributes.name ?? result.attributes.creatorName ?? "Creator")
+                    .font(.headline)
+                    .foregroundStyle(PatreonColors.primaryText)
+                    .lineLimit(1)
+                    .frame(width: cardWidth, alignment: .leading)
+
+                if let creation = result.attributes.creationName {
+                    Text(creation)
+                        .font(.subheadline)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(width: cardWidth, alignment: .top)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(result.attributes.name ?? "Creator"), \(result.attributes.creationName ?? "")")
+    }
+}
+
 @Observable
 @MainActor
 final class SearchViewModel {
@@ -95,18 +157,16 @@ final class SearchViewModel {
     enum ViewState: Equatable { case idle, loading, loaded, error(String) }
 
     private(set) var state: ViewState = .idle
-    private(set) var results: [Post] = []
-    private var campaignsByPostID: [String: Campaign] = [:]
+    private(set) var results: [CampaignSearchResult] = []
     private var currentQuery: String = ""
     private var debounceTask: Task<Void, Never>?
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Search")
 
-    func campaign(for post: Post) -> Campaign? {
-        campaignsByPostID[post.id]
-    }
-
-    func debouncedSearch(query: String) async {
+    /// Schedules a search after a short pause in typing. Synchronous — the
+    /// debounce window lives in the internal task, so callers don't need to
+    /// wrap this in another Task.
+    func debouncedSearch(query: String) {
         debounceTask?.cancel()
         currentQuery = query
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -127,18 +187,7 @@ final class SearchViewModel {
     func search(query: String) async {
         state = .loading
         do {
-            let page = try await PatreonClient.shared.search(query: query, limit: 40)
-            results = page.data
-            campaignsByPostID.removeAll(keepingCapacity: true)
-            var byID: [String: Campaign] = [:]
-            for inc in page.included ?? [] {
-                if case .campaign(let c) = inc { byID[c.id] = c }
-            }
-            for post in results {
-                if let cid = post.relationships?.campaign?.data?.id {
-                    campaignsByPostID[post.id] = byID[cid]
-                }
-            }
+            results = try await PatreonClient.shared.searchCreators(query: query, limit: 40)
             state = .loaded
         } catch {
             log.error("Search failed: \(String(describing: error))")

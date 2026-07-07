@@ -78,18 +78,25 @@ enum Included: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let type = try c.decode(String.self, forKey: .type)
         let id = try c.decode(String.self, forKey: .id)
-        switch type {
-        case "campaign":
-            self = .campaign(try Campaign(from: decoder))
-        case "media":
-            self = .media(try Media(from: decoder))
-        case "user":
-            self = .user(try PatreonUser(from: decoder))
-        case "member":
-            self = .member(try Membership(from: decoder))
-        case "reward", "tier":
-            self = .tier(try Tier(from: decoder))
-        default:
+        // Lossy per-element decode: if Patreon changes a field's shape inside
+        // one included resource, degrade that element to .unknown instead of
+        // failing the whole document. The internal API shifts without notice.
+        do {
+            switch type {
+            case "campaign":
+                self = .campaign(try Campaign(from: decoder))
+            case "media":
+                self = .media(try Media(from: decoder))
+            case "user":
+                self = .user(try PatreonUser(from: decoder))
+            case "member":
+                self = .member(try Membership(from: decoder))
+            case "reward", "tier":
+                self = .tier(try Tier(from: decoder))
+            default:
+                self = .unknown(type: type, id: id)
+            }
+        } catch {
             self = .unknown(type: type, id: id)
         }
     }
@@ -151,9 +158,16 @@ struct Campaign: JSONAPIResource {
         let isNSFW: Bool?
         let imageURL: URL?
         let imageSmallURL: URL?
+        /// The square profile avatar. Preferred over `imageURL` for avatars —
+        /// some campaigns' `image_url` points to a broken/empty placeholder
+        /// while `avatar_photo_url` is the real image.
+        let avatarPhotoURL: URL?
         /// Only present on some endpoints (e.g., campaign detail).
         let coverPhotoURL: URL?
         let hasRSS: Bool?
+
+        /// Best avatar to display: the real avatar photo, falling back to image_url.
+        var bestAvatarURL: URL? { avatarPhotoURL ?? imageURL }
 
         enum CodingKeys: String, CodingKey {
             case name, vanity, url, summary
@@ -162,6 +176,7 @@ struct Campaign: JSONAPIResource {
             case isNSFW = "is_nsfw"
             case imageURL = "image_url"
             case imageSmallURL = "image_small_url"
+            case avatarPhotoURL = "avatar_photo_url"
             case coverPhotoURL = "cover_photo_url"
             case hasRSS = "has_rss"
         }
@@ -179,6 +194,7 @@ struct Membership: JSONAPIResource {
     struct Attributes: Decodable, Hashable {
         let patronStatus: String?
         let currentlyEntitledAmountCents: Int?
+        let isFreeMember: Bool?
         let isGifted: Bool?
         let isFreeTrial: Bool?
         let lastChargeStatus: String?
@@ -189,6 +205,7 @@ struct Membership: JSONAPIResource {
         enum CodingKeys: String, CodingKey {
             case patronStatus = "patron_status"
             case currentlyEntitledAmountCents = "currently_entitled_amount_cents"
+            case isFreeMember = "is_free_member"
             case isGifted = "is_gifted"
             case isFreeTrial = "is_free_trial"
             case lastChargeStatus = "last_charge_status"
@@ -204,6 +221,12 @@ struct Membership: JSONAPIResource {
 
     var isActivePatron: Bool {
         attributes.patronStatus == "active_patron"
+    }
+
+    /// A creator the user *currently* has a relationship with: actively paying,
+    /// or following for free. Excludes lapsed (`former_patron`, not free).
+    var isCurrentRelationship: Bool {
+        isActivePatron || attributes.isFreeMember == true
     }
 }
 
@@ -270,13 +293,21 @@ struct Post: JSONAPIResource {
         /// The critical entitlement flag. If false, media URLs are omitted.
         let currentUserCanView: Bool?
         let thumbnailURL: URL?
+        /// The clean post image (creator's thumbnail). Prefer this for posters.
+        let image: PostImageRef?
+        /// A Patreon-generated social "card-teaser" with the title/duration baked
+        /// in — do NOT use for hero/poster art (it duplicates our own overlay).
         let metaImageURL: URL?
         let embedURL: URL?
         let likeCount: Int?
         let commentCount: Int?
 
+        /// Best clean poster image: the real post image, then thumbnail_url.
+        /// Never the baked card-teaser (`metaImageURL`).
+        var posterImageURL: URL? { image?.url ?? thumbnailURL }
+
         enum CodingKeys: String, CodingKey {
-            case title, content, teaser, url
+            case title, content, teaser, url, image
             case postType = "post_type"
             case publishedAt = "published_at"
             case isPaid = "is_paid"
@@ -286,6 +317,16 @@ struct Post: JSONAPIResource {
             case embedURL = "embed_url"
             case likeCount = "like_count"
             case commentCount = "comment_count"
+        }
+    }
+
+    /// The `image` object on a post: `{ url, thumb_url }` — clean creator artwork.
+    struct PostImageRef: Decodable, Hashable {
+        let url: URL?
+        let thumbURL: URL?
+        enum CodingKeys: String, CodingKey {
+            case url
+            case thumbURL = "thumb_url"
         }
     }
 
@@ -301,6 +342,68 @@ struct Post: JSONAPIResource {
             case campaign, user, media, images, audio
             case attachmentsMedia = "attachments_media"
         }
+    }
+}
+
+// MARK: - Search
+
+/// A `/api/search` result. The internal search returns `campaign-document`
+/// resources (creators), with all fields inline — no JSON:API includes.
+struct CampaignSearchResult: JSONAPIResource, Identifiable {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let name: String?
+        let creatorName: String?
+        let creationName: String?
+        let avatarPhotoURL: URL?
+        let summary: String?
+        let patronCount: Int?
+        let isNSFW: Bool?
+        let url: URL?
+
+        enum CodingKeys: String, CodingKey {
+            case name, summary, url
+            case creatorName = "creator_name"
+            case creationName = "creation_name"
+            case avatarPhotoURL = "avatar_photo_url"
+            case patronCount = "patron_count"
+            case isNSFW = "is_nsfw"
+        }
+    }
+
+    /// Search doc ids look like "campaign_741906"; the numeric suffix is the
+    /// real campaign id used by /api/campaigns/{id}.
+    var campaignID: String {
+        id.hasPrefix("campaign_") ? String(id.dropFirst("campaign_".count)) : id
+    }
+}
+
+// MARK: - Pledge (a paid subscription — the real "creators you support" source)
+
+/// `/api/pledges` returns the user's active pledges with their campaigns
+/// sideloaded. This is the only endpoint that surfaces hidden subscriptions;
+/// `current_user`'s `memberships` relationship comes back empty.
+struct Pledge: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+    let relationships: Relationships?
+
+    struct Attributes: Decodable, Hashable {
+        let amountCents: Int?
+        let createdAt: String?
+
+        enum CodingKeys: String, CodingKey {
+            case amountCents = "amount_cents"
+            case createdAt = "created_at"
+        }
+    }
+
+    struct Relationships: Decodable, Hashable {
+        let campaign: RelationRef?
     }
 }
 

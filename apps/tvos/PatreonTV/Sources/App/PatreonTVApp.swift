@@ -16,15 +16,26 @@ struct PatreonTVApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            content
                 .environment(authStore)
                 .environment(router)
-                .task {
-                    await authStore.restoreSession()
-                }
                 .onOpenURL { url in
                     router.handle(url: url)
                 }
         }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if DEBUG
+        if GalleryConfig.isActive {
+            // Storybook-style capture mode (see GalleryHostView / capture-screens.sh).
+            GalleryHostView()
+        } else {
+            RootView().task { await authStore.restoreSession() }
+        }
+        #else
+        RootView().task { await authStore.restoreSession() }
+        #endif
     }
 }

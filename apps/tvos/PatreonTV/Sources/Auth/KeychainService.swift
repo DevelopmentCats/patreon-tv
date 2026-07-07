@@ -8,12 +8,18 @@
 
 import Foundation
 import Security
+import os.log
 
 struct KeychainService {
 
     let service: String
 
-    func set(_ value: String, forKey key: String) {
+    private static let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Keychain")
+
+    /// Returns false if the write failed — callers can surface this instead of
+    /// silently appearing signed in until the next launch.
+    @discardableResult
+    func set(_ value: String, forKey key: String) -> Bool {
         let data = Data(value.utf8)
 
         // Delete any existing item first.
@@ -26,7 +32,11 @@ struct KeychainService {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
         ]
-        SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status != errSecSuccess {
+            Self.log.error("Keychain write failed for \(key, privacy: .public): OSStatus \(status)")
+        }
+        return status == errSecSuccess
     }
 
     func string(forKey key: String) -> String? {
@@ -51,6 +61,9 @@ struct KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            Self.log.error("Keychain delete failed for \(key, privacy: .public): OSStatus \(status)")
+        }
     }
 }

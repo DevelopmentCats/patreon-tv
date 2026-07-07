@@ -2,9 +2,8 @@
 //  PlaybackProgressStoreTests.swift
 //  PatreonTVTests
 //
-//  The store uses UserDefaults.standard, which is shared across tests in a
-//  target. We reset in setUp and use unique keys so tests don't interfere
-//  with a real device install.
+//  Uses an injected UserDefaults suite so test runs are hermetic and never
+//  touch real watch progress on a dev device.
 //
 
 import XCTest
@@ -13,10 +12,18 @@ import XCTest
 @MainActor
 final class PlaybackProgressStoreTests: XCTestCase {
 
+    private var defaults: UserDefaults!
+    private var store: PlaybackProgressStore!
+    private let suiteName = "com.patreontv.tests.playback"
+
     override func setUp() async throws {
-        // Clear everything at the start so tests are hermetic. This nukes any
-        // real progress data on a dev device — acceptable for a test target.
-        PlaybackProgressStore.shared.clearAll()
+        defaults = UserDefaults(suiteName: suiteName)
+        defaults.removePersistentDomain(forName: suiteName)
+        store = PlaybackProgressStore(defaults: defaults)
+    }
+
+    override func tearDown() async throws {
+        defaults.removePersistentDomain(forName: suiteName)
     }
 
     func test_record_and_retrieve() {
@@ -26,11 +33,18 @@ final class PlaybackProgressStoreTests: XCTestCase {
             durationSeconds: 100,
             lastUpdated: Date()
         )
-        PlaybackProgressStore.shared.record(p)
+        store.record(p)
 
-        let out = PlaybackProgressStore.shared.progress(for: "abc")
+        let out = store.progress(for: "abc")
         XCTAssertEqual(out?.positionSeconds, 42)
         XCTAssertEqual(out?.durationSeconds, 100)
+    }
+
+    func test_persists_across_instances() {
+        store.record(.init(postID: "persisted", positionSeconds: 30, durationSeconds: 90, lastUpdated: Date()))
+
+        let secondStore = PlaybackProgressStore(defaults: defaults)
+        XCTAssertEqual(secondStore.progress(for: "persisted")?.positionSeconds, 30)
     }
 
     func test_isFinished_thresholds() {
@@ -46,27 +60,27 @@ final class PlaybackProgressStoreTests: XCTestCase {
 
     func test_continueWatching_excludes_finished_and_unknown() {
         let now = Date()
-        PlaybackProgressStore.shared.record(.init(postID: "watching-1", positionSeconds: 10, durationSeconds: 100, lastUpdated: now))
-        PlaybackProgressStore.shared.record(.init(postID: "watching-2", positionSeconds: 40, durationSeconds: 100, lastUpdated: now))
-        PlaybackProgressStore.shared.record(.init(postID: "finished", positionSeconds: 99, durationSeconds: 100, lastUpdated: now))
+        store.record(.init(postID: "watching-1", positionSeconds: 10, durationSeconds: 100, lastUpdated: now))
+        store.record(.init(postID: "watching-2", positionSeconds: 40, durationSeconds: 100, lastUpdated: now))
+        store.record(.init(postID: "finished", positionSeconds: 99, durationSeconds: 100, lastUpdated: now))
 
         // Ask only about IDs we know exist
-        let list = PlaybackProgressStore.shared.continueWatching(matching: ["watching-1", "watching-2", "finished"])
+        let list = store.continueWatching(matching: ["watching-1", "watching-2", "finished"])
         XCTAssertEqual(list.map(\.postID).sorted(), ["watching-1", "watching-2"])
     }
 
     func test_continueWatching_filters_by_matching_ids() {
-        PlaybackProgressStore.shared.record(.init(postID: "known", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
-        PlaybackProgressStore.shared.record(.init(postID: "stale", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
+        store.record(.init(postID: "known", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
+        store.record(.init(postID: "stale", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
 
-        let list = PlaybackProgressStore.shared.continueWatching(matching: ["known"])
+        let list = store.continueWatching(matching: ["known"])
         XCTAssertEqual(list.map(\.postID), ["known"])
     }
 
     func test_clear_removes_single_entry() {
-        PlaybackProgressStore.shared.record(.init(postID: "x", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
-        XCTAssertNotNil(PlaybackProgressStore.shared.progress(for: "x"))
-        PlaybackProgressStore.shared.clear(postID: "x")
-        XCTAssertNil(PlaybackProgressStore.shared.progress(for: "x"))
+        store.record(.init(postID: "x", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
+        XCTAssertNotNil(store.progress(for: "x"))
+        store.clear(postID: "x")
+        XCTAssertNil(store.progress(for: "x"))
     }
 }

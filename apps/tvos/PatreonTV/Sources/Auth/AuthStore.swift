@@ -36,6 +36,11 @@ final class AuthStore {
     /// Called from `.task` on app launch. Reads the stored session_id and
     /// verifies it against `/api/current_user`. If valid, transitions to
     /// .signedIn; otherwise .signedOut.
+    ///
+    /// Only a definitive rejection (401/403) clears the stored credential.
+    /// Transient failures — no network, Patreon outage, rate limiting — keep
+    /// the session and enter .signedIn optimistically so an offline launch
+    /// doesn't force the user to re-pair.
     func restoreSession() async {
         guard let sessionID = keychain.string(forKey: sessionKey), !sessionID.isEmpty else {
             log.info("No stored session")
@@ -52,17 +57,42 @@ final class AuthStore {
             log.info("Restored session for user \(user.id)")
         } catch {
             log.error("Session restore failed: \(String(describing: error))")
-            // Failed — clear and re-auth
-            keychain.remove(forKey: sessionKey)
-            keychain.remove(forKey: userIDKey)
-            PatreonClient.shared.sessionID = nil
-            state = .signedOut
+            if Self.shouldClearSession(after: error) {
+                // Patreon definitively rejected the session — clear and re-auth.
+                keychain.remove(forKey: sessionKey)
+                keychain.remove(forKey: userIDKey)
+                PatreonClient.shared.clearSession()
+                state = .signedOut
+            } else if let storedUserID = keychain.string(forKey: userIDKey), !storedUserID.isEmpty {
+                // Transient error — keep the credential and proceed. Content
+                // screens show their own retryable errors while offline.
+                state = .signedIn(userID: storedUserID)
+                log.info("Proceeding with stored session despite transient error")
+            } else {
+                // No cached user id to proceed with; keep the credential in the
+                // keychain (a later launch or re-pair will overwrite it).
+                state = .signedOut
+            }
         }
     }
 
-    /// Called by SignInView after WKWebView captures a session_id cookie.
+    /// True only for errors that mean Patreon rejected the credential itself.
+    /// Everything else (network failures, 5xx, rate limits, decode errors) is
+    /// treated as transient and must NOT destroy the stored session.
+    nonisolated static func shouldClearSession(after error: Error) -> Bool {
+        switch error {
+        case PatreonError.unauthorized, PatreonError.forbidden:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Called by SignInView after the user submits a session_id cookie.
     func completeSignIn(sessionID: String) async {
-        keychain.set(sessionID, forKey: sessionKey)
+        if !keychain.set(sessionID, forKey: sessionKey) {
+            log.error("Could not persist session to keychain; sign-in will not survive relaunch")
+        }
         PatreonClient.shared.sessionID = sessionID
 
         do {
@@ -74,7 +104,7 @@ final class AuthStore {
         } catch {
             log.error("Sign-in verification failed: \(String(describing: error))")
             keychain.remove(forKey: sessionKey)
-            PatreonClient.shared.sessionID = nil
+            PatreonClient.shared.clearSession()
             state = .signedOut
         }
     }
@@ -82,7 +112,7 @@ final class AuthStore {
     func signOut() {
         keychain.remove(forKey: sessionKey)
         keychain.remove(forKey: userIDKey)
-        PatreonClient.shared.sessionID = nil
+        PatreonClient.shared.clearSession()
         currentUser = nil
         state = .signedOut
         log.info("Signed out")

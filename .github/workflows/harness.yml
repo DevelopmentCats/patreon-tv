@@ -2,7 +2,7 @@ name: harness
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**"]
+    branches: [main, "scaffold/**", "feature/**", "fix/**"]
     paths:
       - "harness/**"
       - ".github/workflows/harness.yml"
@@ -28,7 +28,9 @@ jobs:
 
       - name: Install
         working-directory: harness
-        run: npm ci || npm install
+        # The lockfile is committed; if npm ci fails that's a real error, not
+        # something to paper over with npm install.
+        run: npm ci
 
       - name: Syntax check
         working-directory: harness

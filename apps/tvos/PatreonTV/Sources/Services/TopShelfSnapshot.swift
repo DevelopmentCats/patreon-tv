@@ -1,6 +1,8 @@
 //
 //  TopShelfSnapshot.swift
-//  Shared between the main app and the Top Shelf extension.
+//  Shared between the main app and the Top Shelf extension — this single file
+//  is compiled into BOTH targets (see project.yml), so there is no duplicate
+//  copy to keep in sync.
 //
 //  The main app writes a small JSON snapshot to a shared App Group container.
 //  The Top Shelf extension reads it on demand. This avoids the extension
@@ -37,8 +39,9 @@ struct TopShelfSnapshot: Codable {
 
     private static let filename = "top-shelf.json"
 
-    static func load() -> TopShelfSnapshot? {
-        guard let dir = AppGroup.containerURL else { return nil }
+    /// Directory injectable for tests (round-trip against a temp dir).
+    static func load(from directory: URL? = AppGroup.containerURL) -> TopShelfSnapshot? {
+        guard let dir = directory else { return nil }
         let url = dir.appendingPathComponent(filename)
         guard let data = try? Data(contentsOf: url),
               let snapshot = try? JSONDecoder().decode(TopShelfSnapshot.self, from: data)
@@ -46,8 +49,8 @@ struct TopShelfSnapshot: Codable {
         return snapshot
     }
 
-    func save() throws {
-        guard let dir = AppGroup.containerURL else {
+    func save(to directory: URL? = AppGroup.containerURL) throws {
+        guard let dir = directory else {
             throw NSError(domain: "TopShelfSnapshot", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "App Group container not available"])
         }

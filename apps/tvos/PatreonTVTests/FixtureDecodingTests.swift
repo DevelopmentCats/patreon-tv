@@ -156,6 +156,10 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(muxURL?.pathExtension, "m3u8")
         XCTAssertEqual(duration, 1653.8522)
         XCTAssertEqual(width, 1920)
+
+        let source = MediaPlaybackResolver.resolve(from: doc)
+        XCTAssertEqual(source?.url.host(), "stream.mux.com")
+        if case .direct? = source {} else { XCTFail("expected a direct playback source") }
     }
 
     /// A locked post — the OAuth Bearer case from live-probe 17.

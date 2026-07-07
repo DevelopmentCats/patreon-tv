@@ -2,9 +2,9 @@
 //  CreatorsView.swift
 //  PatreonTV
 //
-//  Grid of creators the user supports. Sourced from /current_user/memberships
-//  which returns member records with campaign includes. Free-follow
-//  memberships are hidden by default.
+//  Grid of the creators the user follows. Sourced from /api/members (active
+//  patrons + free follows) unioned with /api/pledges (which surfaces hidden
+//  paid subscriptions that /members can miss). See CreatorsViewModel.reload().
 //
 
 import NukeUI
@@ -14,6 +14,14 @@ import os
 struct CreatorsView: View {
 
     @State private var vm = CreatorsViewModel()
+    @State private var prefs = ContentPreferences.shared
+
+    /// Entries after applying the mature-content gate.
+    private var visibleEntries: [CreatorsViewModel.Entry] {
+        prefs.showMatureContent
+            ? vm.entries
+            : vm.entries.filter { $0.campaign.attributes.isNSFW != true }
+    }
 
     var body: some View {
         NavigationStack {
@@ -22,15 +30,16 @@ struct CreatorsView: View {
                 case .idle, .loading:
                     ProgressView().controlSize(.large)
                 case .loaded:
-                    content
+                    if visibleEntries.isEmpty { CreatorsEmptyView() } else { content }
                 case .empty:
-                    EmptyFeedView()
+                    CreatorsEmptyView()
                 case .error(let m):
                     ErrorView(message: m) { Task { await vm.reload() } }
                 }
             }
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
+            .appNavigationDestinations()
         }
     }
 
@@ -41,11 +50,9 @@ struct CreatorsView: View {
                 columns: [GridItem(.adaptive(minimum: 320, maximum: 380), spacing: 40)],
                 spacing: 40
             ) {
-                ForEach(vm.entries, id: \.membership.id) { entry in
-                    NavigationLink {
-                        CreatorView(campaignID: entry.campaign.id, membership: entry.membership)
-                    } label: {
-                        CreatorCard(campaign: entry.campaign, membership: entry.membership)
+                ForEach(visibleEntries) { entry in
+                    NavigationLink(value: DeepLinkDestination.creator(id: entry.campaign.id)) {
+                        CreatorCard(campaign: entry.campaign)
                     }
                     .buttonStyle(.card)
                 }
@@ -56,25 +63,37 @@ struct CreatorsView: View {
     }
 }
 
+struct CreatorsEmptyView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "person.2.slash")
+                .font(.system(size: 80))
+                .foregroundStyle(PatreonColors.secondaryText)
+            Text("No creators yet")
+                .font(.title2)
+                .foregroundStyle(PatreonColors.primaryText)
+            Text("Creators you actively support on Patreon will appear here.")
+                .foregroundStyle(PatreonColors.secondaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 struct CreatorCard: View {
 
     let campaign: Campaign
-    let membership: Membership
 
     private let cardWidth: CGFloat = 340
-    private let cardHeight: CGFloat = 340
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            LazyImage(url: campaign.attributes.imageURL) { state in
-                if let img = state.image {
-                    img.resizable().aspectRatio(contentMode: .fill)
-                } else {
-                    ZStack {
-                        PatreonColors.cardSurface
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(PatreonColors.tertiaryText)
+            LazyImage(url: campaign.attributes.bestAvatarURL) { state in
+                // Initials placeholder sits underneath so it still shows when a
+                // campaign's avatar is a broken/empty image (some return 200 blank).
+                ZStack {
+                    avatarPlaceholder
+                    if let img = state.image {
+                        img.resizable().aspectRatio(contentMode: .fill)
                     }
                 }
             }
@@ -96,9 +115,22 @@ struct CreatorCard: View {
                 }
             }
         }
-        .frame(width: cardWidth, height: cardHeight, alignment: .top)
+        .frame(width: cardWidth, alignment: .top)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(campaign.attributes.name ?? "Creator"), \(campaign.attributes.creationName ?? "")")
+    }
+
+    /// A colored tile with the creator's initial, used when no avatar loads.
+    private var avatarPlaceholder: some View {
+        let name = campaign.attributes.name ?? "?"
+        let hue = Double(name.unicodeScalars.reduce(0) { $0 + Int($1.value) } % 360) / 360
+        let tint = Color(hue: hue, saturation: 0.45, brightness: 0.5)
+        return ZStack {
+            LinearGradient(colors: [tint, tint.opacity(0.65)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            Text(name.first.map { String($0).uppercased() } ?? "?")
+                .font(.system(size: 120, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+        }
     }
 }
 
@@ -110,11 +142,10 @@ final class CreatorsViewModel {
 
     enum ViewState: Equatable { case idle, loading, loaded, empty, error(String) }
 
-    /// A membership + its resolved campaign. Pre-joined so the view can just iterate.
+    /// A followed creator's campaign. Wrapped so the view can iterate directly.
     struct Entry: Identifiable {
-        let membership: Membership
         let campaign: Campaign
-        var id: String { membership.id }
+        var id: String { campaign.id }
     }
 
     private(set) var state: ViewState = .idle
@@ -130,36 +161,43 @@ final class CreatorsViewModel {
     func reload() async {
         state = .loading
         do {
-            let doc = try await PatreonClient.shared.memberships()
-            var campaignByID: [String: Campaign] = [:]
-            for inc in doc.included ?? [] {
-                if case .campaign(let c) = inc {
-                    campaignByID[c.id] = c
-                }
+            // The user's current creators, listed directly from /api/members
+            // (active patrons + free follows; lapsed excluded), unioned with
+            // /api/pledges to catch any paid sub missing from members. NSFW
+            // filtering happens in the view so the Settings toggle applies live.
+            var byID: [String: Campaign] = [:]
+            var order: [String] = []
+            func add(_ c: Campaign) {
+                if byID[c.id] == nil { byID[c.id] = c; order.append(c.id) }
             }
 
-            var joined: [Entry] = []
-            for m in doc.data {
-                guard let cid = m.relationships?.campaign?.data?.id,
-                      let c = campaignByID[cid]
-                else { continue }
-                // Filter NSFW campaigns per App Store guidance.
-                if c.attributes.isNSFW == true { continue }
-                joined.append(Entry(membership: m, campaign: c))
+            // 1) All current relationships (active or free), most-recent first.
+            let memberDoc = try await PatreonClient.shared.members()
+            var memberCampaigns: [String: Campaign] = [:]
+            for inc in memberDoc.included ?? [] {
+                if case .campaign(let c) = inc { memberCampaigns[c.id] = c }
+            }
+            for member in memberDoc.data where member.isCurrentRelationship {
+                if let cid = member.relationships?.campaign?.data?.id,
+                   let c = memberCampaigns[cid] { add(c) }
             }
 
-            // Sort: active patrons first, then by patron_count desc.
-            joined.sort { a, b in
-                let aActive = a.membership.isActivePatron ? 0 : 1
-                let bActive = b.membership.isActivePatron ? 0 : 1
-                if aActive != bActive { return aActive < bActive }
-                return (a.campaign.attributes.patronCount ?? 0) > (b.campaign.attributes.patronCount ?? 0)
+            // 2) Union in active paid pledges (a paid sub can be absent from
+            //    /members but present here).
+            let pledgeDoc = try await PatreonClient.shared.pledges()
+            var pledgeCampaigns: [String: Campaign] = [:]
+            for inc in pledgeDoc.included ?? [] {
+                if case .campaign(let c) = inc { pledgeCampaigns[c.id] = c }
+            }
+            for pledge in pledgeDoc.data {
+                if let cid = pledge.relationships?.campaign?.data?.id,
+                   let c = pledgeCampaigns[cid] { add(c) }
             }
 
-            entries = joined
+            entries = order.compactMap { byID[$0] }.map { Entry(campaign: $0) }
             state = entries.isEmpty ? .empty : .loaded
         } catch {
-            log.error("Memberships load failed: \(String(describing: error))")
+            log.error("Creators load failed: \(String(describing: error))")
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
         }
     }

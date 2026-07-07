@@ -2,7 +2,7 @@ name: repo hygiene
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**"]
+    branches: [main, "scaffold/**", "feature/**", "fix/**"]
   pull_request:
     branches: [main]
 

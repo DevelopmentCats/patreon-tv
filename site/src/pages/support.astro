@@ -17,18 +17,17 @@ import Base from "../layouts/Base.astro";
 
   <h3>How do I sign in?</h3>
   <p>
-    On first launch, PatreonTV opens Patreon's login page in an in-app
-    browser. Sign in as you normally would on patreon.com. Once your
-    session is captured, you're returned to the app and it stays signed
-    in on your Apple TV.
+    On first launch, PatreonTV shows a short pairing code. Open the link
+    shown on the TV on your phone or computer, confirm the code matches,
+    and sign in to Patreon there. Your Apple TV connects automatically
+    within a few seconds and stays signed in.
   </p>
 
   <h3>Why can't I see a post I know I paid for?</h3>
   <p>
-    Make sure you're signed into the same Patreon account that has the
-    membership. Some paywalled content requires you to sign in via the
-    in-app browser (not just enter credentials in a form). If a specific
-    post still doesn't appear, try force-quitting and reopening the app.
+    Make sure you paired with the same Patreon account that has the
+    membership. If a specific post still doesn't appear, try
+    force-quitting and reopening the app, or sign out and pair again.
   </p>
 
   <h3>A video won't play. What now?</h3>
@@ -42,17 +41,19 @@ import Base from "../layouts/Base.astro";
       in-app — you'll see a "Watch on…" prompt to open the original service.
     </li>
     <li>
-      If the video is Patreon-hosted and still fails, please email us
+      If the video is Patreon-hosted and still fails, please contact us
       (below) with the post title and creator name so we can investigate.
     </li>
   </ul>
 
   <h3>Is my Patreon password stored on your servers?</h3>
   <p>
-    No. PatreonTV has no servers. Your password is typed into Patreon's
-    own website inside an in-app browser and never seen by our code. The
-    session cookie Patreon issues is stored in the tvOS Keychain on your
-    Apple TV. See our <a href="/privacy">privacy policy</a> for details.
+    No. During pairing you sign in on Patreon's own website — your
+    password is never seen by our code. The session cookie Patreon
+    issues is handed to your Apple TV once, encrypted in transit,
+    deleted from the pairing service, and stored only in the tvOS
+    Keychain on your device. See our
+    <a href="/privacy">privacy policy</a> for details.
   </p>
 
   <h3>Does watching in PatreonTV support the creator?</h3>
@@ -82,8 +83,13 @@ import Base from "../layouts/Base.astro";
   <h2>Contact</h2>
   <p>
     For anything not covered above — including privacy or security
-    concerns — email
-    <a href="mailto:[email protected]">[email protected]</a>.
-    We aim to reply within a few business days.
+    concerns — open an issue on
+    <a
+      href="https://github.com/DevelopmentCats/patreon-tv/issues"
+      rel="noopener">GitHub</a>. For security reports, please use
+    <a
+      href="https://github.com/DevelopmentCats/patreon-tv/security/advisories/new"
+      rel="noopener">GitHub's private vulnerability reporting</a>
+    instead of a public issue. We aim to reply within a few business days.
   </p>
 </Base>

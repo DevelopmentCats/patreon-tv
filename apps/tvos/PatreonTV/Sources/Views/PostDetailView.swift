@@ -6,19 +6,32 @@
 //  relationship with the Mux HLS URL if the current session can view it).
 //
 
+import NukeUI
 import SwiftUI
+import os.log
 
 struct PostDetailView: View {
 
     let postID: String
+    /// When true (Top Shelf "Play", the featured hero button, deep links with
+    /// /play), playback starts as soon as the post loads.
+    var autoplay: Bool = false
 
     @State private var post: Post?
+    @State private var campaign: Campaign?
+    @State private var videoDuration: Double?
+    @State private var heroImageURL: URL?
     @State private var mediaURL: URL?
     @State private var errorMessage: String?
+    @State private var playbackErrorMessage: String?
     @State private var isLoading = true
-    @State private var showPlayer = false
+    @State private var playbackSource: MediaPlaybackSource?
+    @State private var isPreparingPlayback = false
+    @State private var didAutoplay = false
     /// Bumped to force a re-read of PlaybackProgressStore after we clear it.
     @State private var resumeProgressStamp = UUID()
+
+    private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "PostDetail")
 
     var body: some View {
         Group {
@@ -32,86 +45,282 @@ struct PostDetailView: View {
         }
         .task { await load() }
         .background(PatreonColors.background.ignoresSafeArea())
-        .fullScreenCover(isPresented: $showPlayer) {
-            if let mediaURL {
-                PlayerView(
-                    mediaURL: mediaURL,
-                    title: post?.attributes.title ?? "",
-                    postID: postID,
-                    resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds
-                )
-            }
+        .fullScreenCover(item: $playbackSource) { source in
+            PlayerView(
+                source: source,
+                title: post?.attributes.title ?? "",
+                postID: postID,
+                resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds,
+                onPlaybackFailure: { message in
+                    playbackSource = nil
+                    playbackErrorMessage = message
+                }
+            )
+            .ignoresSafeArea()
+        }
+        .alert(
+            "Playback Problem",
+            isPresented: Binding(
+                get: { playbackErrorMessage != nil },
+                set: { if !$0 { playbackErrorMessage = nil } }
+            )
+        ) {
+            Button("Try Again") { Task { await prepareAndPlay() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(playbackErrorMessage ?? "")
         }
     }
 
     @ViewBuilder
     private func loaded(post: Post) -> some View {
-        ScrollView(.vertical) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 40) {
-                Text(post.attributes.title ?? "Untitled")
-                    .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(PatreonColors.primaryText)
-                    .padding(.horizontal, 60)
-                    .padding(.top, 60)
+                hero(post: post)
+                    .padding(.bottom, -40)
 
-                if let mediaURL {
-                    HStack(spacing: 16) {
-                        Button {
-                            showPlayer = true
-                        } label: {
-                            Label(playButtonLabel, systemImage: "play.fill")
-                                .font(.title3.weight(.semibold))
-                                .padding(.horizontal, 48)
-                                .padding(.vertical, 20)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(PatreonColors.brand)
+                metadataSection(post: post)
 
-                        if resumeProgress != nil {
-                            Button {
-                                // Clear resume point → next play starts from 0
-                                PlaybackProgressStore.shared.clear(postID: postID)
-                                // Trigger re-render by touching state
-                                resumeProgressStamp = UUID()
-                                showPlayer = true
-                            } label: {
-                                Text("Start Over")
-                                    .font(.title3.weight(.medium))
-                                    .padding(.horizontal, 32)
-                                    .padding(.vertical, 20)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                    .padding(.horizontal, 60)
-                } else if post.attributes.currentUserCanView == false {
-                    lockedNotice
-                }
+                playbackSection(post: post)
 
-                if let teaser = post.attributes.teaser, !teaser.isEmpty {
-                    Text(teaser)
-                        .font(.title3)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                        .padding(.horizontal, 60)
-                }
-
-                if let content = post.attributes.content, !content.isEmpty {
-                    // Content is HTML — convert to AttributedString so links,
-                    // bold, italic, and lists render properly.
-                    Text(HTMLRenderer.attributedString(from: content))
-                        .font(.body)
-                        .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
-                        .padding(.horizontal, 60)
-                        .frame(maxWidth: 1400, alignment: .leading)
-                }
+                descriptionSection(post: post)
 
                 Spacer(minLength: 60)
             }
         }
+        .scrollClipDisabled()
+    }
+
+    @ViewBuilder
+    private func hero(post: Post) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            Group {
+                if let heroImageURL {
+                    LazyImage(url: heroImageURL) { state in
+                        if let image = state.image {
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            heroPlaceholder(post: post)
+                        }
+                    }
+                } else {
+                    heroPlaceholder(post: post)
+                }
+            }
+            .frame(height: 640)
+            .frame(maxWidth: .infinity)
+            .clipped()
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.9), Color.black.opacity(0.35), Color.clear],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            .frame(height: 640)
+            .frame(maxWidth: .infinity)
+
+            // Horizontal scrim: darkens the left ~two-thirds where the title/creator
+            // sit so busy thumbnails (e.g. baked-in chapter lists) recede on the right.
+            LinearGradient(
+                colors: [Color.black.opacity(0.92), Color.black.opacity(0.6), Color.black.opacity(0.15)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 640)
+            .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 12) {
+                if post.attributes.isPaid == true {
+                    Text("PATRON")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(PatreonColors.brand.opacity(0.95))
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                }
+
+                Text(post.attributes.title ?? "Untitled")
+                    .font(.system(size: 64, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
+
+                if let subtitle = heroSubtitle(post: post) {
+                    Text(subtitle)
+                        .font(.title3)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+            }
+            .padding(.horizontal, 60)
+            .padding(.bottom, 60)
+            .frame(maxWidth: 1200, alignment: .leading)
+        }
+    }
+
+    private func heroPlaceholder(post: Post) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: [PatreonColors.background, PatreonColors.cardSurface],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image(systemName: post.attributes.postType.iconName)
+                .font(.system(size: 80))
+                .foregroundStyle(PatreonColors.tertiaryText)
+        }
+    }
+
+    @ViewBuilder
+    private func metadataSection(post: Post) -> some View {
+        HStack(spacing: 24) {
+            if let campaign {
+                NavigationLink(value: DeepLinkDestination.creator(id: campaign.id)) {
+                    Label(campaign.attributes.name ?? "Creator", systemImage: "person.circle.fill")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if let published = formattedPublishedDate(post.attributes.publishedAt) {
+                Label(published, systemImage: "calendar")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+            }
+
+            if let duration = videoDuration, duration > 0 {
+                Label(formatTime(duration), systemImage: "clock")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+            }
+
+            if let likes = post.attributes.likeCount, likes > 0 {
+                Label("\(likes)", systemImage: "heart")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+            }
+
+            if let comments = post.attributes.commentCount, comments > 0 {
+                Label("\(comments)", systemImage: "bubble.left")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+            }
+        }
+        .padding(.horizontal, 60)
+    }
+
+    @ViewBuilder
+    private func playbackSection(post: Post) -> some View {
+        if playbackSource != nil || mediaURL != nil {
+            VStack(alignment: .leading, spacing: 20) {
+                if let progress = resumeProgress, progress.durationSeconds > 0 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ProgressView(value: progress.positionSeconds / progress.durationSeconds)
+                            .tint(PatreonColors.brand)
+                        Text("Watched \(formatTime(progress.positionSeconds)) of \(formatTime(progress.durationSeconds))")
+                            .font(.subheadline)
+                            .foregroundStyle(PatreonColors.secondaryText)
+                    }
+                }
+
+                HStack(spacing: 16) {
+                    Button {
+                        Task { await prepareAndPlay() }
+                    } label: {
+                        Label(playButtonLabel, systemImage: "play.fill")
+                            .font(.title3.weight(.semibold))
+                            .padding(.horizontal, 48)
+                            .padding(.vertical, 20)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(PatreonColors.brand)
+                    .disabled(isPreparingPlayback)
+
+                    if resumeProgress != nil {
+                        Button {
+                            PlaybackProgressStore.shared.clear(postID: postID)
+                            resumeProgressStamp = UUID()
+                            Task { await prepareAndPlay() }
+                        } label: {
+                            Text("Start Over")
+                                .font(.title3.weight(.medium))
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 20)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isPreparingPlayback)
+                    }
+                }
+
+                if isPreparingPlayback {
+                    ProgressView("Loading video…")
+                }
+            }
+            .padding(.horizontal, 60)
+        } else if post.attributes.currentUserCanView == false {
+            lockedNotice
+        }
+    }
+
+    @ViewBuilder
+    private func descriptionSection(post: Post) -> some View {
+        if let teaser = post.attributes.teaser, !teaser.isEmpty {
+            Text(teaser)
+                .font(.title3)
+                .foregroundStyle(PatreonColors.secondaryText)
+                .padding(.horizontal, 60)
+                .frame(maxWidth: 1400, alignment: .leading)
+        }
+
+        if let content = post.attributes.content, !content.isEmpty {
+            Text(HTMLRenderer.attributedString(from: content))
+                .font(.body)
+                .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
+                .padding(.horizontal, 60)
+                .frame(maxWidth: 1400, alignment: .leading)
+        }
+        // No filler when both teaser and content are empty — many video posts
+        // have no description text, and "Video from <creator>" added nothing.
+    }
+
+    private func heroSubtitle(post: Post) -> String? {
+        var parts: [String] = []
+        if let name = campaign?.attributes.name {
+            parts.append(name)
+        }
+        if let type = postTypeLabel(post.attributes.postType) {
+            parts.append(type)
+        }
+        if let duration = videoDuration, duration > 0 {
+            parts.append(formatTime(duration))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func postTypeLabel(_ type: Post.PostType?) -> String? {
+        switch type {
+        case .videoExternalFile, .videoEmbed: "Video"
+        case .audioFile, .audioEmbed, .podcast: "Audio"
+        case .imageFile: "Image"
+        case .textOnly: "Post"
+        case .link: "Link"
+        case .poll: "Poll"
+        case .livestreamYoutube, .livestreamCrowdcast: "Livestream"
+        case .other, nil: nil
+        }
+    }
+
+    private func formattedPublishedDate(_ iso: String?) -> String? {
+        guard let iso, !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else {
+            return nil
+        }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 
     private var resumeProgress: PlaybackProgress? {
-        // resumeProgressStamp is read here so mutations force this to recompute.
         _ = resumeProgressStamp
         guard let p = PlaybackProgressStore.shared.progress(for: postID),
               !p.isFinished,
@@ -152,33 +361,73 @@ struct PostDetailView: View {
         errorMessage = nil
         do {
             let doc = try await PatreonClient.shared.post(id: postID)
-            self.post = doc.data
-            self.mediaURL = extractMediaURL(from: doc)
+            apply(document: doc)
         } catch {
             errorMessage = (error as? PatreonError)?.errorDescription
                 ?? error.localizedDescription
         }
         isLoading = false
+
+        // Honor the autoplay flag from Top Shelf / deep links / featured Play,
+        // exactly once per presentation.
+        if autoplay, !didAutoplay, post != nil, mediaURL != nil {
+            didAutoplay = true
+            await prepareAndPlay()
+        }
     }
 
-    /// Walk the `included` array for a media resource whose display.url is set.
-    /// This is where the signed Mux HLS URL lives when the current session
-    /// is entitled to view the post.
-    private func extractMediaURL(from doc: SingleResource<Post>) -> URL? {
+    private func apply(document doc: SingleResource<Post>) {
+        post = doc.data
+        mediaURL = MediaPlaybackResolver.resolve(from: doc)?.url
+
+        var resolvedCampaign: Campaign?
+        var resolvedDuration: Double?
+        var resolvedHero: URL?
+
         for inc in doc.included ?? [] {
-            if case .media(let media) = inc {
-                if let url = media.attributes.display?.url {
-                    return url
+            switch inc {
+            case .campaign(let c):
+                resolvedCampaign = c
+            case .media(let m):
+                if resolvedDuration == nil {
+                    resolvedDuration = m.attributes.display?.duration
                 }
-                // Fall back to download_url if display.url isn't set but
-                // download_url is (rare for video, common for audio/images).
-                if let url = media.attributes.downloadURL,
-                   media.attributes.mimetype?.hasPrefix("video/") == true
-                        || media.attributes.mimetype == "application/x-mpegURL" {
-                    return url
+                if resolvedHero == nil {
+                    resolvedHero = m.attributes.display?.defaultThumbnail?.url
                 }
+            default:
+                break
             }
         }
-        return nil
+
+        campaign = resolvedCampaign
+        videoDuration = resolvedDuration
+        heroImageURL = resolvedHero
+            ?? doc.data.attributes.posterImageURL
+    }
+
+    /// Re-fetch post on play so Mux HLS tokens are fresh (~24h expiry).
+    private func prepareAndPlay() async {
+        isPreparingPlayback = true
+        defer { isPreparingPlayback = false }
+
+        do {
+            let doc = try await PatreonClient.shared.post(id: postID)
+            apply(document: doc)
+            guard let source = MediaPlaybackResolver.resolve(from: doc) else {
+                // The detail view is still showing (post != nil), so surface
+                // this via the playback alert rather than errorMessage, which
+                // only renders when the whole page failed to load.
+                playbackErrorMessage = "No playable video URL was returned for this post."
+                mediaURL = nil
+                return
+            }
+            mediaURL = source.url
+            log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
+            playbackSource = source
+        } catch {
+            playbackErrorMessage = (error as? PatreonError)?.errorDescription
+                ?? error.localizedDescription
+        }
     }
 }

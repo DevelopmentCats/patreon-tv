@@ -2,21 +2,9 @@
 //  SignInView.swift
 //  PatreonTV
 //
-//  First-launch (and re-auth) sign-in flow. Presents a large, clear pitch,
-//  then opens a WKWebView on `patreon.com/login`. When the user has
-//  successfully logged in, we detect the `session_id` cookie on the shared
-//  cookie store and hand it to AuthStore.
-//
-//  tvOS considerations:
-//  - The WKWebView must be given focus so the user can interact with the
-//    on-screen keyboard and Patreon's form.
-//  - Siri dictation works on tvOS for text fields — users can *speak* their
-//    email address into the mic on the Siri Remote.
-//  - iCloud Keychain sync fills passwords for known sites, including
-//    patreon.com, if the user has a stored credential.
-//  - iPhone-nearby text entry: when a tvOS text field is focused, a
-//    notification pops on the user's iPhone allowing them to type on their
-//    phone's keyboard.
+//  First-launch (and re-auth) sign-in flow. Presents a pitch, then opens
+//  the device-link pairing panel. User completes login on patreontv.com;
+//  the TV polls until the session_id is ready.
 //
 
 import SwiftUI
@@ -24,7 +12,7 @@ import SwiftUI
 struct SignInView: View {
 
     @Environment(AuthStore.self) private var auth
-    @State private var showWebView = false
+    @State private var showPairing = false
 
     var body: some View {
         ZStack {
@@ -35,13 +23,13 @@ struct SignInView: View {
             )
             .ignoresSafeArea()
 
-            if showWebView {
-                PatreonLoginWebView(
-                    onCookieCaptured: { sessionID in
+            if showPairing {
+                PatreonPairingSignInView(
+                    onSessionIDCaptured: { sessionID in
                         Task { await auth.completeSignIn(sessionID: sessionID) }
                     },
                     onDismiss: {
-                        withAnimation { showWebView = false }
+                        withAnimation { showPairing = false }
                     }
                 )
                 .transition(.opacity)
@@ -50,16 +38,18 @@ struct SignInView: View {
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showWebView)
+        .animation(.easeInOut(duration: 0.25), value: showPairing)
     }
 
     private var pitch: some View {
         VStack(spacing: 40) {
             Spacer()
 
-            Text("PatreonTV")
-                .font(.system(size: 96, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+            Image("PTVWordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 160)
+                .accessibilityLabel("PatreonTV")
 
             VStack(spacing: 12) {
                 Text("Watch your Patreon creators on the big screen.")
@@ -74,7 +64,7 @@ struct SignInView: View {
             Spacer()
 
             Button {
-                withAnimation { showWebView = true }
+                withAnimation { showPairing = true }
             } label: {
                 Text("Sign in with Patreon")
                     .font(.title3.weight(.semibold))
