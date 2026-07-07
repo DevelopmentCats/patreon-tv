@@ -16,11 +16,15 @@ struct PlayerView: UIViewControllerRepresentable {
     let title: String
     let postID: String
     let resumeSeconds: Double?
+    /// Called on the main actor when the player item fails (e.g. an expired
+    /// Mux token after pausing overnight). The presenter should dismiss the
+    /// player and offer a retry, which re-fetches a fresh URL.
+    var onPlaybackFailure: ((String) -> Void)? = nil
 
     var mediaURL: URL { source.url }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(postID: postID)
+        Coordinator(postID: postID, onFailure: onPlaybackFailure)
     }
 
     func makeUIViewController(context: Context) -> PlayerHostViewController {
@@ -46,13 +50,15 @@ struct PlayerView: UIViewControllerRepresentable {
     @MainActor
     final class Coordinator: NSObject {
         let postID: String
+        private let onFailure: ((String) -> Void)?
         private var timeObserver: Any?
         private var statusObserver: NSKeyValueObservation?
         private weak var player: AVPlayer?
         private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
 
-        init(postID: String) {
+        init(postID: String, onFailure: ((String) -> Void)? = nil) {
             self.postID = postID
+            self.onFailure = onFailure
         }
 
         func attach(player: AVPlayer, item: AVPlayerItem) {
@@ -67,6 +73,13 @@ struct PlayerView: UIViewControllerRepresentable {
                     case .failed:
                         self.log.error(
                             "Player failed for post \(self.postID): \(String(describing: item.error))"
+                        )
+                        // Media URLs are token-signed with ~24h expiry, so a
+                        // long pause can kill the stream. Surface it instead of
+                        // leaving a silent black screen.
+                        self.onFailure?(
+                            item.error?.localizedDescription
+                                ?? "The video stopped playing. Its link may have expired — try again."
                         )
                     default:
                         break
@@ -161,22 +174,15 @@ final class PlayerHostViewController: UIViewController {
         guard !didConfigure else { return }
         didConfigure = true
 
-        var headers: [String: String] = [
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 PatreonTV/0.1",
-            "Referer": "https://www.patreon.com/",
-        ]
-        if let sessionID = PatreonClient.shared.sessionID {
-            headers["Cookie"] = "session_id=\(sessionID)"
-        }
-
-        // Both Mux and Patreon media URLs are self-signed with an expiring token,
-        // so a plain asset streams them directly and AVFoundation handles its own
-        // efficient byte-range fetching. The header fields are applied to the
-        // initial request only, as harmless insurance (User-Agent / Referer).
+        // Both Mux and Patreon media URLs are self-signed with an expiring token
+        // in the query string, so a plain asset streams them directly and
+        // AVFoundation handles its own efficient byte-range fetching.
+        //
+        // Deliberately NO custom headers here: attaching the Patreon session
+        // cookie would leak the full account credential to third-party CDNs
+        // (stream.mux.com) for zero benefit.
         log.info("Direct playback for \(source.url.absoluteString.prefix(120))")
-        let asset = AVURLAsset(url: source.url, options: [
-            "AVURLAssetHTTPHeaderFieldsKey": headers,
-        ])
+        let asset = AVURLAsset(url: source.url)
 
         let item = AVPlayerItem(asset: asset)
         item.externalMetadata = [makeMetadataItem(identifier: .commonIdentifierTitle, value: title)]

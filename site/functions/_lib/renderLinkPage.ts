@@ -1,30 +1,53 @@
+import { escapeHTML } from "./html";
+
 interface LinkPageOptions {
   code: string;
   displayCode: string;
   query: URLSearchParams;
   oauthEnabled: boolean;
+  /** Live KV status of the code, so dead codes don't render a working form. */
+  codeStatus: "pending" | "complete" | "claimed" | "missing";
 }
 
-export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkPageOptions): string {
-  const success = query.get("success") === "1";
+/** Human-readable messages for the fixed error codes the OAuth callback emits. */
+function errorMessage(error: string): string {
+  switch (error) {
+    case "need_session":
+      return "Signed in with Patreon, but we still need your session cookie — paste it below.";
+    case "expired":
+      return "This pairing code expired. Start again from your Apple TV.";
+    case "access_denied":
+      return "Patreon sign-in was cancelled. You can try again or connect manually below.";
+    case "invalid_state":
+      return "This sign-in link is stale or invalid. Go back to your Apple TV and start again.";
+    case "token_exchange_failed":
+      return "Patreon sign-in failed. Try again in a moment, or connect manually below.";
+    default:
+      return "Sign-in failed. Try again, or connect manually below.";
+  }
+}
+
+export function renderLinkPage({ code, displayCode, query, oauthEnabled, codeStatus }: LinkPageOptions): string {
+  const success = query.get("success") === "1" || codeStatus === "claimed";
   const error = query.get("error");
+  // A missing code is expired or was never issued: render a clear dead-end
+  // instead of a form whose submission can never succeed.
+  const codeDead = codeStatus === "missing";
 
   let statusHTML = "";
 
-  if (success) {
-    statusHTML = `<div class="status ok">You're connected. Return to your Apple TV — it should sign in automatically.</div>`;
+  if (codeDead) {
+    statusHTML = `<div class="status error" role="status">This pairing code isn't active — it may have expired. Start again from your Apple TV to get a fresh code.</div>`;
+  } else if (codeStatus === "claimed") {
+    statusHTML = `<div class="status ok" role="status">This code was already used — your Apple TV should be signed in. If it isn't, start again from the TV.</div>`;
+  } else if (success) {
+    statusHTML = `<div class="status ok" role="status">You're connected. Return to your Apple TV — it should sign in automatically.</div>`;
   } else if (error && error !== "oauth_not_configured") {
-    const message =
-      error === "need_session"
-        ? "Signed in with Patreon, but we still need your session cookie — paste it below."
-        : error === "expired"
-          ? "This pairing code expired. Start again from your Apple TV."
-          : `Sign-in failed: ${escapeHTML(error)}`;
     const kind = error === "need_session" ? "warn" : "error";
-    statusHTML = `<div class="status ${kind}">${message}</div>`;
+    statusHTML = `<div class="status ${kind}" role="status">${escapeHTML(errorMessage(error))}</div>`;
   }
 
-  const oauthBlock = oauthEnabled && !success
+  const oauthBlock = oauthEnabled && !success && !codeDead
     ? `<a class="button primary" id="oauth-btn" href="/api/pairing/oauth/start?code=${escapeHTML(code)}">Sign in with Patreon</a>`
     : "";
 
@@ -41,6 +64,16 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkP
         </ol>`;
 
   const manualClose = oauthEnabled ? `</details>` : `</div>`;
+
+  const manualHTML = codeDead || codeStatus === "claimed"
+    ? ""
+    : `${manualIntro}
+        <form id="manual-form">
+          <label for="session_id">session_id</label>
+          <input id="session_id" name="session_id" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="Paste cookie value" required />
+          <button type="submit" class="button secondary">Connect TV</button>
+        </form>
+      ${manualClose}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -83,8 +116,9 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkP
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 2rem;
       letter-spacing: 0.2em;
-      margin: 0.25rem 0 1.5rem;
+      margin: 0.25rem 0 0.5rem;
     }
+    .code-note { margin: 0 0 1.5rem; font-size: 0.85rem; opacity: 0.6; }
     .button {
       display: block;
       text-decoration: none;
@@ -120,7 +154,7 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkP
     ol.steps { opacity: 0.85; line-height: 1.6; padding-left: 1.25rem; }
     a { color: #fa7f7d; }
     label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; opacity: 0.75; }
-    input[type="password"], input[type="text"] {
+    input[type="text"] {
       width: 100%;
       box-sizing: border-box;
       border-radius: 10px;
@@ -141,20 +175,26 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkP
       <h1>Connect your Apple TV</h1>
       <p class="code-label">Pairing code</p>
       <p class="code">${escapeHTML(displayCode)}</p>
-      ${statusHTML}
+      <p class="code-note">Make sure this matches the code on your TV. Never sign in for a code someone sent you.</p>
+      <div id="live-status" aria-live="polite">${statusHTML}</div>
       ${oauthBlock}
-      ${manualIntro}
-        <form id="manual-form">
-          <label for="session_id">session_id</label>
-          <input id="session_id" name="session_id" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="Paste cookie value" required />
-          <button type="submit" class="button secondary">Connect TV</button>
-        </form>
-      ${manualClose}
+      ${manualHTML}
     </div>
   </main>
   <script>
     const code = ${JSON.stringify(code)};
     const form = document.getElementById("manual-form");
+    const liveStatus = document.getElementById("live-status");
+    function setStatus(kind, text) {
+      let status = liveStatus.querySelector(".status");
+      if (!status) {
+        status = document.createElement("div");
+        status.setAttribute("role", "status");
+        liveStatus.appendChild(status);
+      }
+      status.className = "status " + kind;
+      status.textContent = text;
+    }
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const sessionId = document.getElementById("session_id").value.trim();
@@ -164,33 +204,18 @@ export function renderLinkPage({ code, displayCode, query, oauthEnabled }: LinkP
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code, session_id: sessionId }),
       });
-      let status = document.querySelector(".status");
       if (!resp.ok) {
-        if (!status) {
-          status = document.createElement("div");
-          document.querySelector(".card").insertBefore(status, form);
-        }
-        status.className = "status error";
-        status.textContent = "Could not connect. Check the code on your TV and try again.";
+        setStatus("error", "Could not connect. Check the code on your TV and try again.");
         return;
       }
-      if (!status) {
-        status = document.createElement("div");
-        document.querySelector(".card").insertBefore(status, form);
-      }
-      status.className = "status ok";
-      status.textContent = "Connected. Your Apple TV should sign in within a few seconds.";
+      setStatus("ok", "Connected. Your Apple TV should sign in within a few seconds.");
+      // Don't leave the session cookie sitting on-screen after success.
+      document.getElementById("session_id").value = "";
+      form.closest(".manual")?.setAttribute("hidden", "hidden");
+      form.setAttribute("hidden", "hidden");
       document.getElementById("oauth-btn")?.setAttribute("hidden", "hidden");
     });
   </script>
 </body>
 </html>`;
-}
-
-function escapeHTML(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

@@ -1,4 +1,4 @@
-import { formatCode, normalizeCode, type PairingEnv } from "../_lib/pairing";
+import { formatCode, normalizeCode, pairingStatus, type PairingEnv } from "../_lib/pairing";
 import { renderLinkPage } from "../_lib/renderLinkPage";
 
 export const onRequestGet: PagesFunction<PairingEnv> = async ({ params, request, env }) => {
@@ -14,6 +14,7 @@ export const onRequestGet: PagesFunction<PairingEnv> = async ({ params, request,
     displayCode: formatCode(code),
     query: new URL(request.url).searchParams,
     oauthEnabled,
+    codeStatus: await pairingStatus(env, code),
   });
 
   return new Response(html, {

@@ -47,7 +47,7 @@ struct SearchView: View {
             }
             .searchable(text: $query, prompt: "Search creators")
             .onChange(of: query) { _, newValue in
-                Task { await vm.debouncedSearch(query: newValue) }
+                vm.debouncedSearch(query: newValue)
             }
             .task {
                 // Seed a query on first appear (capture gallery); triggers search.
@@ -57,6 +57,7 @@ struct SearchView: View {
                 }
             }
             .background(PatreonColors.background.ignoresSafeArea())
+            .appNavigationDestinations()
         }
     }
 
@@ -93,9 +94,7 @@ struct SearchView: View {
                 spacing: 40
             ) {
                 ForEach(visibleResults) { result in
-                    NavigationLink {
-                        CreatorView(campaignID: result.campaignID, membership: nil)
-                    } label: {
+                    NavigationLink(value: DeepLinkDestination.creator(id: result.campaignID)) {
                         SearchCreatorCard(result: result)
                     }
                     .buttonStyle(.card)
@@ -164,7 +163,10 @@ final class SearchViewModel {
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Search")
 
-    func debouncedSearch(query: String) async {
+    /// Schedules a search after a short pause in typing. Synchronous — the
+    /// debounce window lives in the internal task, so callers don't need to
+    /// wrap this in another Task.
+    func debouncedSearch(query: String) {
         debounceTask?.cancel()
         currentQuery = query
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  Device-link sign-in: TV shows a code + QR, user completes login on
-//  patreontv.app/link/<code>, TV polls until the session is ready.
+//  patreontv.com/link/<code>, TV polls until the session is ready.
 //
 
 import CoreImage.CIFilterBuiltins
@@ -74,9 +74,13 @@ struct PatreonPairingSignInView: View {
                         .background(.white, in: RoundedRectangle(cornerRadius: 20))
                 }
 
-                Text(session.linkURL.host ?? "patreontv.com")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.7))
+                // Full path, not just the host — someone typing the URL by hand
+                // needs /link/<code> or they dead-end on the homepage.
+                Text(displayLink(session.linkURL))
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
 
             VStack(alignment: .leading, spacing: 24) {
@@ -101,6 +105,7 @@ struct PatreonPairingSignInView: View {
                 Text("Visit the link or scan the code, then sign in with Patreon.")
                     .font(.title3)
                     .foregroundStyle(.white.opacity(0.55))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: 560, alignment: .leading)
         }
@@ -121,6 +126,12 @@ struct PatreonPairingSignInView: View {
             .buttonStyle(.borderedProminent)
             .tint(PatreonColors.brand)
         }
+    }
+
+    /// Human-typeable form of the link URL: host + path, no scheme.
+    private func displayLink(_ url: URL) -> String {
+        let host = url.host ?? "patreontv.com"
+        return host + url.path
     }
 
     private func startPairing() async {

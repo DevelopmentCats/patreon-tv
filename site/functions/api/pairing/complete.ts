@@ -5,6 +5,7 @@ import {
   normalizeCode,
   type PairingEnv,
 } from "../../_lib/pairing";
+import { clientIP, rateLimit, rateLimited } from "../../_lib/rateLimit";
 
 interface CompleteBody {
   code?: string;
@@ -12,6 +13,10 @@ interface CompleteBody {
 }
 
 export const onRequestPost: PagesFunction<PairingEnv> = async ({ request, env }) => {
+  // Accepts credential material against guessable codes — throttle hard.
+  const limit = await rateLimit(env.PAIRING, "complete", clientIP(request), 10, 60);
+  if (!limit.allowed) return rateLimited();
+
   let body: CompleteBody;
   try {
     body = (await request.json()) as CompleteBody;
@@ -25,6 +30,7 @@ export const onRequestPost: PagesFunction<PairingEnv> = async ({ request, env })
     return json({ error: "invalid_request" }, { status: 400 });
   }
 
+  // completePairing rejects missing, expired, and already-claimed codes.
   const updated = await completePairing(env, code, sessionID);
   if (!updated) {
     return json({ error: "code_not_found", display_code: formatCode(code) }, { status: 404 });

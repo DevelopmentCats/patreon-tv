@@ -2,10 +2,9 @@
 //  CreatorsView.swift
 //  PatreonTV
 //
-//  Grid of the creators the user follows. Patreon's internal /current_user does
-//  not sideload memberships (the relationship comes back empty with no related
-//  link), so we derive the list from the campaigns present in the home stream —
-//  the creators whose posts the user actually sees.
+//  Grid of the creators the user follows. Sourced from /api/members (active
+//  patrons + free follows) unioned with /api/pledges (which surfaces hidden
+//  paid subscriptions that /members can miss). See CreatorsViewModel.reload().
 //
 
 import NukeUI
@@ -40,6 +39,7 @@ struct CreatorsView: View {
             }
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
+            .appNavigationDestinations()
         }
     }
 
@@ -51,9 +51,7 @@ struct CreatorsView: View {
                 spacing: 40
             ) {
                 ForEach(visibleEntries) { entry in
-                    NavigationLink {
-                        CreatorView(campaignID: entry.campaign.id, membership: nil)
-                    } label: {
+                    NavigationLink(value: DeepLinkDestination.creator(id: entry.campaign.id)) {
                         CreatorCard(campaign: entry.campaign)
                     }
                     .buttonStyle(.card)

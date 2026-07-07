@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  First-launch (and re-auth) sign-in flow. Presents a pitch, then opens
-//  the device-link pairing panel. User completes login on patreontv.app;
+//  the device-link pairing panel. User completes login on patreontv.com;
 //  the TV polls until the session_id is ready.
 //
 

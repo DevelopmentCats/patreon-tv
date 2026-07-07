@@ -7,8 +7,8 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "PAIRING"
-id = "00000000000000000000000000000000"   # replace in Cloudflare dashboard for production
-preview_id = "00000000000000000000000000000000"
+id = "5ea4a5a69593412b89bdc16c8e69cd48"
+preview_id = "5ea4a5a69593412b89bdc16c8e69cd48"
 
 # Environment variables (set via the Cloudflare dashboard or `wrangler pages secret put`)
 # ------------------------------------------------------------------
@@ -17,3 +17,6 @@ preview_id = "00000000000000000000000000000000"
 # PATREON_CLIENT_SECRET   — OAuth client secret
 # PATREON_REDIRECT_URI    — https://patreontv.com/api/pairing/oauth/callback (or local dev URL)
 # PAIRING_PUBLIC_ORIGIN   — https://patreontv.com (or http://127.0.0.1:8788 for local dev)
+# PAIRING_SESSION_KEY     — REQUIRED in production: 32-byte base64 key that
+#                           seals session cookies at rest in KV.
+#                           Generate with: openssl rand -base64 32

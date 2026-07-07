@@ -3,6 +3,8 @@
 // Tiny HTML template shared by the share-fallback Pages Functions.
 // Kept dependency-free so the Pages Function bundle stays small.
 
+import { escapeHTML as escape } from "./html";
+
 interface Params {
   kind: "post" | "creator";
   title: string;
@@ -55,14 +57,6 @@ nav a { color: var(--text-muted); text-decoration: none; }
 footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
 footer a { color: var(--text-muted); margin: 0 12px; }
 `;
-
-function escape(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 export function renderShareFallback(params: Params): string {
   const t = escape(params.title);

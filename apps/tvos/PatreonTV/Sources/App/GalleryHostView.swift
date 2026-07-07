@@ -9,7 +9,7 @@
 //  push detail screens via the deep-link router.
 //
 //  Env vars:
-//    GALLERY_SCREEN      signin | home | creators | search | settings | postDetail | creator | player
+//    GALLERY_SCREEN      signin | pairing | home | creators | search | settings | postDetail | creator | player
 //    PATREON_SESSION_ID  session_id cookie to authenticate with
 //    GALLERY_MATURE      "1" to show mature content
 //    GALLERY_QUERY       seed term for the search screen
@@ -62,6 +62,10 @@ struct GalleryHostView: View {
         switch GalleryConfig.screen {
         case "signin":
             SignInView()
+        case "pairing":
+            // Live pairing panel — Debug builds point PairingConfig at the
+            // local wrangler dev server, so the code + QR are real.
+            PatreonPairingSignInView(onSessionIDCaptured: { _ in }, onDismiss: {})
         case "player":
             if let playerSource {
                 PlayerView(source: playerSource, title: playerTitle, postID: playerPostID, resumeSeconds: nil)

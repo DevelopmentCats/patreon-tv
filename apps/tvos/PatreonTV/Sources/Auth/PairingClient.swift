@@ -64,8 +64,13 @@ actor PairingClient {
 
     func poll(code: String) async -> PairingPollStatus {
         let url = PairingConfig.baseURL.appending(path: "api/pairing/\(code)")
+        // POST: claiming consumes the session server-side (GET is a
+        // side-effect-free status check that never returns the session).
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 return .failed("Unexpected response from pairing service.")
             }
@@ -79,6 +84,10 @@ actor PairingClient {
                 return .pending
             case 404:
                 return .expired
+            case 429:
+                // Transient server-side throttle — keep polling rather than
+                // aborting the pairing flow.
+                return .pending
             default:
                 return .failed("Pairing service returned HTTP \(http.statusCode).")
             }

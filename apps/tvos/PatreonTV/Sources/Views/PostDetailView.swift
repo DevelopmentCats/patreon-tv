@@ -13,6 +13,9 @@ import os.log
 struct PostDetailView: View {
 
     let postID: String
+    /// When true (Top Shelf "Play", the featured hero button, deep links with
+    /// /play), playback starts as soon as the post loads.
+    var autoplay: Bool = false
 
     @State private var post: Post?
     @State private var campaign: Campaign?
@@ -20,9 +23,11 @@ struct PostDetailView: View {
     @State private var heroImageURL: URL?
     @State private var mediaURL: URL?
     @State private var errorMessage: String?
+    @State private var playbackErrorMessage: String?
     @State private var isLoading = true
     @State private var playbackSource: MediaPlaybackSource?
     @State private var isPreparingPlayback = false
+    @State private var didAutoplay = false
     /// Bumped to force a re-read of PlaybackProgressStore after we clear it.
     @State private var resumeProgressStamp = UUID()
 
@@ -45,9 +50,25 @@ struct PostDetailView: View {
                 source: source,
                 title: post?.attributes.title ?? "",
                 postID: postID,
-                resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds
+                resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds,
+                onPlaybackFailure: { message in
+                    playbackSource = nil
+                    playbackErrorMessage = message
+                }
             )
             .ignoresSafeArea()
+        }
+        .alert(
+            "Playback Problem",
+            isPresented: Binding(
+                get: { playbackErrorMessage != nil },
+                set: { if !$0 { playbackErrorMessage = nil } }
+            )
+        ) {
+            Button("Try Again") { Task { await prepareAndPlay() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(playbackErrorMessage ?? "")
         }
     }
 
@@ -144,7 +165,7 @@ struct PostDetailView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            Image(systemName: iconForPostType(post.attributes.postType))
+            Image(systemName: post.attributes.postType.iconName)
                 .font(.system(size: 80))
                 .foregroundStyle(PatreonColors.tertiaryText)
         }
@@ -154,9 +175,7 @@ struct PostDetailView: View {
     private func metadataSection(post: Post) -> some View {
         HStack(spacing: 24) {
             if let campaign {
-                NavigationLink {
-                    CreatorView(campaignID: campaign.id, membership: nil)
-                } label: {
+                NavigationLink(value: DeepLinkDestination.creator(id: campaign.id)) {
                     Label(campaign.attributes.name ?? "Creator", systemImage: "person.circle.fill")
                         .font(.title3.weight(.medium))
                 }
@@ -291,15 +310,6 @@ struct PostDetailView: View {
         }
     }
 
-    private func iconForPostType(_ type: Post.PostType?) -> String {
-        switch type {
-        case .videoExternalFile, .videoEmbed: "play.rectangle.fill"
-        case .audioFile, .audioEmbed, .podcast: "waveform"
-        case .imageFile: "photo"
-        default: "square.stack.fill"
-        }
-    }
-
     private func formattedPublishedDate(_ iso: String?) -> String? {
         guard let iso, !iso.isEmpty else { return nil }
         let parser = ISO8601DateFormatter()
@@ -357,6 +367,13 @@ struct PostDetailView: View {
                 ?? error.localizedDescription
         }
         isLoading = false
+
+        // Honor the autoplay flag from Top Shelf / deep links / featured Play,
+        // exactly once per presentation.
+        if autoplay, !didAutoplay, post != nil, mediaURL != nil {
+            didAutoplay = true
+            await prepareAndPlay()
+        }
     }
 
     private func apply(document doc: SingleResource<Post>) {
@@ -398,7 +415,10 @@ struct PostDetailView: View {
             let doc = try await PatreonClient.shared.post(id: postID)
             apply(document: doc)
             guard let source = MediaPlaybackResolver.resolve(from: doc) else {
-                errorMessage = "No playable video URL was returned for this post."
+                // The detail view is still showing (post != nil), so surface
+                // this via the playback alert rather than errorMessage, which
+                // only renders when the whole page failed to load.
+                playbackErrorMessage = "No playable video URL was returned for this post."
                 mediaURL = nil
                 return
             }
@@ -406,7 +426,7 @@ struct PostDetailView: View {
             log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
             playbackSource = source
         } catch {
-            errorMessage = (error as? PatreonError)?.errorDescription
+            playbackErrorMessage = (error as? PatreonError)?.errorDescription
                 ?? error.localizedDescription
         }
     }

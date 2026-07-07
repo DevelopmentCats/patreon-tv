@@ -2,7 +2,7 @@ name: tvOS build
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**"]
+    branches: [main, "scaffold/**", "feature/**", "fix/**"]
   pull_request:
     branches: [main]
 
@@ -19,11 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+      - name: Select latest Xcode
+        # Runner images ship several Xcode versions at /Applications/Xcode_<v>.app;
+        # pick the newest instead of hardcoding one that may not exist.
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Selecting $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -50,9 +53,12 @@ jobs:
 
       - name: Build
         working-directory: apps/tvos
+        # xcodebuild's exit code is the source of truth — never masked by the
+        # log-filtering grep (which previously ended in `|| true` and could
+        # let a failed build pass).
         run: |
           set -o pipefail
-          xcodebuild \
+          if ! xcodebuild \
             -project PatreonTV.xcodeproj \
             -scheme PatreonTV \
             -destination "platform=tvOS Simulator,name=Apple TV" \
@@ -61,14 +67,18 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-          | tee build.log | grep -E "warning:|error:|BUILD" || true
-          if grep -q "BUILD FAILED" build.log; then exit 1; fi
+            > build.log 2>&1; then
+            echo "::error::xcodebuild build failed"
+            tail -200 build.log
+            exit 1
+          fi
+          grep -E "warning:|error:|BUILD" build.log || true
 
       - name: Test
         working-directory: apps/tvos
         run: |
           set -o pipefail
-          xcodebuild \
+          if ! xcodebuild \
             -project PatreonTV.xcodeproj \
             -scheme PatreonTV \
             -destination "platform=tvOS Simulator,name=Apple TV" \
@@ -77,8 +87,12 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-          | tee test.log | grep -E "warning:|error:|Test Case|Passed|Failed|BUILD" || true
-          if grep -q "TEST FAILED\|BUILD FAILED" test.log; then exit 1; fi
+            > test.log 2>&1; then
+            echo "::error::xcodebuild test failed"
+            tail -200 test.log
+            exit 1
+          fi
+          grep -E "Test Case|Test Suite|passed|failed" test.log || true
 
       - name: Upload logs on failure
         if: failure()

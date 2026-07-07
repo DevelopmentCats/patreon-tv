@@ -91,6 +91,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: PatreonTVTopShelf
+      # Shared with the main app target — one file, two targets, no drift.
+      - path: PatreonTV/Sources/Services/TopShelfSnapshot.swift
     info:
       path: PatreonTVTopShelf/Info.plist
       properties:
@@ -127,7 +129,9 @@ targets:
 packages:
   Nuke:
     url: https://github.com/kean/Nuke
-    from: "12.8.0"
+    # Pinned exactly: Package.resolved lives inside the gitignored generated
+    # .xcodeproj, so the pin here is what makes CI builds reproducible.
+    exactVersion: "12.8.0"
 
 schemes:
   PatreonTV:

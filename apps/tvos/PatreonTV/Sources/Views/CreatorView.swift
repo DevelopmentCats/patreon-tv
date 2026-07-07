@@ -65,6 +65,10 @@ struct CreatorView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
             Spacer()
+            // Destination-style link is deliberate here: the payload (the
+            // already-loaded posts array) isn't Hashable/Codable, so it can't
+            // be a DeepLinkDestination value. This push is never mixed with
+            // programmatic path writes, so it's safe.
             NavigationLink {
                 CreatorPostSearchView(posts: vm.posts, campaign: vm.campaign)
             } label: {
@@ -86,9 +90,7 @@ struct CreatorView: View {
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(vm.posts) { post in
-                NavigationLink {
-                    PostDetailView(postID: post.id)
-                } label: {
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
@@ -224,9 +226,7 @@ private struct CreatorPostSearchView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 40) {
                     ForEach(results) { post in
-                        NavigationLink {
-                            PostDetailView(postID: post.id)
-                        } label: {
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
                             PostCard(post: post, campaign: campaign)
                         }
                         .buttonStyle(.card)

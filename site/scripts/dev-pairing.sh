@@ -3,7 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TVOS_CONFIG="$ROOT/../apps/tvos/PatreonTV/Sources/Auth/PairingConfig.swift"
+# The app reads its pairing origin from Info.plist, populated by the
+# PAIRING_BASE_URL build setting in project.yml (Debug config).
+TVOS_PROJECT_YML="$ROOT/../apps/tvos/project.yml"
 PORT="${PAIRING_PORT:-8788}"
 
 pick_ip() {
@@ -49,11 +51,17 @@ else
   echo "No harness/.env — OAuth disabled; use session_id paste on the link page."
 fi
 
-if [[ -f "$TVOS_CONFIG" ]]; then
-  perl -0pi -e "s#URL\\(string: \"http://[^\"]+:${PORT}\"\\)!#URL(string: \"${ORIGIN}\")!#g" "$TVOS_CONFIG"
-  echo "Updated ${TVOS_CONFIG}"
+if [[ -f "$TVOS_PROJECT_YML" ]]; then
+  # Point the app's Debug pairing origin at this LAN IP for the dev session,
+  # and restore the tracked file when the server stops so the working tree
+  # isn't left dirty with a local IP. Re-run `xcodegen generate` after this
+  # script changes the value (and again after it restores it).
+  cp "$TVOS_PROJECT_YML" "${TVOS_PROJECT_YML}.bak"
+  trap 'if [[ -f "${TVOS_PROJECT_YML}.bak" ]]; then mv "${TVOS_PROJECT_YML}.bak" "$TVOS_PROJECT_YML"; echo "Restored ${TVOS_PROJECT_YML}"; fi' EXIT
+  perl -pi -e "s#PAIRING_BASE_URL: http://[^\\s]+#PAIRING_BASE_URL: ${ORIGIN}#" "$TVOS_PROJECT_YML"
+  echo "Updated ${TVOS_PROJECT_YML} Debug PAIRING_BASE_URL → ${ORIGIN} (restored on exit)"
 fi
 
 cd "$ROOT"
 npm run build
-exec npx wrangler pages dev dist --port "$PORT" --ip 0.0.0.0
+npx wrangler pages dev dist --port "$PORT" --ip 0.0.0.0

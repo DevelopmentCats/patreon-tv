@@ -78,18 +78,25 @@ enum Included: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let type = try c.decode(String.self, forKey: .type)
         let id = try c.decode(String.self, forKey: .id)
-        switch type {
-        case "campaign":
-            self = .campaign(try Campaign(from: decoder))
-        case "media":
-            self = .media(try Media(from: decoder))
-        case "user":
-            self = .user(try PatreonUser(from: decoder))
-        case "member":
-            self = .member(try Membership(from: decoder))
-        case "reward", "tier":
-            self = .tier(try Tier(from: decoder))
-        default:
+        // Lossy per-element decode: if Patreon changes a field's shape inside
+        // one included resource, degrade that element to .unknown instead of
+        // failing the whole document. The internal API shifts without notice.
+        do {
+            switch type {
+            case "campaign":
+                self = .campaign(try Campaign(from: decoder))
+            case "media":
+                self = .media(try Media(from: decoder))
+            case "user":
+                self = .user(try PatreonUser(from: decoder))
+            case "member":
+                self = .member(try Membership(from: decoder))
+            case "reward", "tier":
+                self = .tier(try Tier(from: decoder))
+            default:
+                self = .unknown(type: type, id: id)
+            }
+        } catch {
             self = .unknown(type: type, id: id)
         }
     }

@@ -31,7 +31,6 @@ struct PostCard: View {
                 .background(PatreonColors.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .topTrailing) { badge }
-                .overlay(alignment: .bottomLeading) { durationLabel }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(post.attributes.title ?? "Untitled")
@@ -74,22 +73,9 @@ struct PostCard: View {
     private var placeholder: some View {
         ZStack {
             PatreonColors.cardSurface
-            Image(systemName: iconForPostType)
+            Image(systemName: post.attributes.postType.iconName)
                 .font(.system(size: 48))
                 .foregroundStyle(PatreonColors.tertiaryText)
-        }
-    }
-
-    private var iconForPostType: String {
-        switch post.attributes.postType {
-        case .videoExternalFile, .videoEmbed: "play.rectangle.fill"
-        case .audioFile, .audioEmbed, .podcast: "waveform"
-        case .imageFile: "photo"
-        case .link: "link"
-        case .textOnly: "text.alignleft"
-        case .poll: "chart.bar.fill"
-        case .livestreamYoutube, .livestreamCrowdcast: "dot.radiowaves.left.and.right"
-        case .other, nil: "square"
         }
     }
 
@@ -105,12 +91,6 @@ struct PostCard: View {
                 .clipShape(Capsule())
                 .padding(8)
         }
-    }
-
-    @ViewBuilder
-    private var durationLabel: some View {
-        // Later: pull duration from Media relation
-        EmptyView()
     }
 
     private var subtitle: String? {

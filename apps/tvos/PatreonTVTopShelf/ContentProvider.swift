@@ -28,11 +28,17 @@ final class ContentProvider: TVTopShelfContentProvider {
             return nil
         }
 
-        let items: [TVTopShelfSectionedItem] = snapshot.items.prefix(10).map { entry in
+        let items: [TVTopShelfSectionedItem] = snapshot.items.prefix(10).compactMap { entry in
+            // Post IDs are numeric today, but a malformed snapshot must not
+            // crash the extension — skip the entry instead of force-unwrapping.
+            guard let displayURL = URL(string: "patreontv://post/\(entry.postID)"),
+                  let playURL = URL(string: "patreontv://post/\(entry.postID)/play")
+            else { return nil }
+
             let item = TVTopShelfSectionedItem(identifier: entry.postID)
             item.title = entry.title
-            item.playAction = TVTopShelfAction(url: URL(string: "patreontv://post/\(entry.postID)/play")!)
-            item.displayAction = TVTopShelfAction(url: URL(string: "patreontv://post/\(entry.postID)")!)
+            item.playAction = TVTopShelfAction(url: playURL)
+            item.displayAction = TVTopShelfAction(url: displayURL)
 
             if let imageURL = entry.imageURL {
                 item.setImageURL(imageURL, for: .screenScale1x)

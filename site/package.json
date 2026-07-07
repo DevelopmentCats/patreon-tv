@@ -9,15 +9,19 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "check:functions": "tsc --noEmit -p functions/tsconfig.json",
+    "test": "vitest run",
     "dev:pairing": "bash scripts/dev-pairing.sh",
     "deploy": "astro build && wrangler pages deploy dist --project-name patreon-tv"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
-    "astro": "^7.0.6",
-    "typescript": "^5.7.2"
+    "astro": "^7.0.6"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@cloudflare/workers-types": "^4.20260620.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4",
     "wrangler": "^4.0.0"
   }
 }

@@ -95,4 +95,40 @@ final class ModelsDecodingTests: XCTestCase {
         let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
         XCTAssertEqual(doc.data.attributes.postType, .other)
     }
+
+    /// One malformed included element must not fail the whole document —
+    /// it degrades to .unknown and the healthy elements still decode.
+    func test_included_decode_is_lossy_per_element() throws {
+        let json = """
+        {
+          "data": {
+            "type": "post", "id": "1",
+            "attributes": { "title": "x", "post_type": "video_external_file" }
+          },
+          "included": [
+            {
+              "type": "campaign",
+              "id": "bad",
+              "attributes": { "patron_count": "not-a-number" }
+            },
+            {
+              "type": "campaign",
+              "id": "good",
+              "attributes": { "name": "Healthy Creator" }
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
+
+        var campaigns: [Campaign] = []
+        var unknowns: [String] = []
+        for inc in doc.included ?? [] {
+            if case .campaign(let c) = inc { campaigns.append(c) }
+            if case .unknown(_, let id) = inc { unknowns.append(id) }
+        }
+        XCTAssertEqual(campaigns.map(\.id), ["good"])
+        XCTAssertEqual(unknowns, ["bad"])
+    }
 }
