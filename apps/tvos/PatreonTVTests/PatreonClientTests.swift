@@ -126,6 +126,42 @@ final class PatreonClientTests: XCTestCase {
         XCTAssertNil(client.currentUserID)
     }
 
+    // MARK: Auth failure hook
+
+    func test_401_fires_auth_failure_handler_once_debounced() async {
+        client.sessionID = "stale-session"
+        var fires = 0
+        client.authFailureHandler = { fires += 1 }
+        StubURLProtocol.handler = { _ in (401, [:], Data()) }
+
+        _ = try? await client.currentUser()
+        _ = try? await client.currentUser()   // within debounce window
+
+        XCTAssertEqual(fires, 1)
+    }
+
+    func test_401_without_session_does_not_fire_handler() async {
+        var fires = 0
+        client.authFailureHandler = { fires += 1 }
+        StubURLProtocol.handler = { _ in (401, [:], Data()) }
+
+        _ = try? await client.currentUser()
+
+        XCTAssertEqual(fires, 0)
+    }
+
+    func test_403_does_not_fire_auth_failure_handler() async {
+        // 403 is content-level (tier gating), not a dead session.
+        client.sessionID = "valid-session"
+        var fires = 0
+        client.authFailureHandler = { fires += 1 }
+        StubURLProtocol.handler = { _ in (403, [:], Data()) }
+
+        _ = try? await client.currentUser()
+
+        XCTAssertEqual(fires, 0)
+    }
+
     func test_retries_transient_500_then_succeeds() async throws {
         let counter = CapturedValue<Int>()
         counter.value = 0

@@ -16,13 +16,22 @@ final class ContentPreferences {
     static let shared = ContentPreferences()
 
     private let matureKey = "show_mature_content"
+    private let autoplayKey = "autoplay_next"
 
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
         didSet { UserDefaults.standard.set(showMatureContent, forKey: matureKey) }
     }
 
+    /// When true (default), the Up Next overlay auto-advances to the creator's
+    /// next post after a countdown. When false the overlay still appears but
+    /// waits for the user.
+    var autoplayNext: Bool {
+        didSet { UserDefaults.standard.set(autoplayNext, forKey: autoplayKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
+        autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
     }
 }

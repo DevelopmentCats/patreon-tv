@@ -39,6 +39,24 @@ final class PatreonClient {
     /// The Patreon session cookie. Set by AuthStore after sign-in.
     var sessionID: String?
 
+    /// Invoked when any request comes back 401 while a session cookie is set —
+    /// the signal that Patreon no longer honors the stored credential.
+    /// AuthStore registers this at launch to drive the re-pair flow.
+    /// Debounced so a burst of parallel requests fires it once.
+    var authFailureHandler: (() -> Void)?
+    private var lastAuthFailureNotification: Date?
+    private let authFailureDebounce: TimeInterval = 5
+
+    private func notifyAuthFailure() {
+        guard sessionID != nil else { return }
+        let now = Date()
+        if let last = lastAuthFailureNotification, now.timeIntervalSince(last) < authFailureDebounce {
+            return
+        }
+        lastAuthFailureNotification = now
+        authFailureHandler?()
+    }
+
     /// The signed-in user's numeric id, cached from `current_user` — needed for
     /// the `members` filter.
     private(set) var currentUserID: String?
@@ -48,6 +66,7 @@ final class PatreonClient {
     func clearSession() {
         sessionID = nil
         currentUserID = nil
+        lastAuthFailureNotification = nil
     }
 
     private let session: URLSession
@@ -288,6 +307,7 @@ final class PatreonClient {
         case 200...299:
             return (data, http)
         case 401:
+            notifyAuthFailure()
             throw PatreonError.unauthorized
         case 403:
             throw PatreonError.forbidden

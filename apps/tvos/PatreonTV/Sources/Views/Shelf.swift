@@ -10,6 +10,7 @@
 //  parent VStack, and horizontal swipes move within this shelf.
 //
 
+import NukeUI
 import SwiftUI
 
 struct Shelf: View {
@@ -22,14 +23,14 @@ struct Shelf: View {
     /// Called when the shelf's data source should page in more items — we pass
     /// the last-visible post so the caller can decide whether to fetch more.
     var onNearEnd: ((Post) -> Void)? = nil
+    /// When set, the header becomes a focusable link (creator rows navigate
+    /// to the creator's page). Shown with the optional avatar.
+    var headerLink: DeepLinkDestination? = nil
+    var headerAvatarURL: URL? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text(title)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(PatreonColors.primaryText)
-                .padding(.horizontal, 60)
-                .accessibilityAddTraits(.isHeader)
+            header
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 32) {
@@ -55,6 +56,41 @@ struct Shelf: View {
             .scrollClipDisabled()
         }
         .focusSection()
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        if let headerLink {
+            NavigationLink(value: headerLink) {
+                HStack(spacing: 16) {
+                    if let headerAvatarURL {
+                        LazyImage(url: headerAvatarURL) { state in
+                            if let image = state.image {
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } else {
+                                PatreonColors.cardSurface
+                            }
+                        }
+                        .frame(width: 52, height: 52)
+                        .clipShape(Circle())
+                    }
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                    Image(systemName: "chevron.right")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(PatreonColors.secondaryText)
+                }
+            }
+            .buttonStyle(.bordered)
+            .padding(.horizontal, 60)
+            .accessibilityLabel("\(title), view creator")
+        } else {
+            Text(title)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(PatreonColors.primaryText)
+                .padding(.horizontal, 60)
+                .accessibilityAddTraits(.isHeader)
+        }
     }
 
     private func focusedPoster(for post: Post) -> FocusedPoster {

@@ -97,20 +97,41 @@ struct HomeView: View {
                     )
                 }
 
+                // Short merged shelf of the latest posts across creators; the
+                // per-creator rows below carry the depth.
                 if !feed.isEmpty {
                     Shelf(
                         title: "New from Your Creators",
-                        posts: feed,
-                        campaignFor: { vm.campaign(for: $0) },
+                        posts: Array(feed.prefix(10)),
+                        campaignFor: { vm.campaign(for: $0) }
+                    )
+                }
+
+                ForEach(creatorRows) { row in
+                    Shelf(
+                        title: row.campaign.attributes.name ?? "Creator",
+                        posts: row.posts,
+                        campaignFor: { _ in row.campaign },
                         onNearEnd: { post in
-                            Task { await vm.loadMoreIfNeeded(current: post) }
-                        }
+                            Task { await vm.loadMoreCreatorRow(campaignID: row.id, current: post) }
+                        },
+                        headerLink: .creator(id: row.campaign.id),
+                        headerAvatarURL: row.campaign.attributes.bestAvatarURL
                     )
                 }
             }
             .padding(.bottom, 40)
         }
         .scrollClipDisabled()   // tvOS 17+ — lets focused-card scale escape ScrollView bounds
+    }
+
+    /// Creator rows with content, honoring the mature-content gate.
+    private var creatorRows: [HomeViewModel.CreatorRow] {
+        vm.creatorRows.filter { row in
+            guard !row.posts.isEmpty else { return false }
+            if prefs.showMatureContent { return true }
+            return row.campaign.attributes.isNSFW != true
+        }
     }
 }
 

@@ -46,6 +46,17 @@ struct SettingsView: View {
             .frame(maxWidth: 700)
             .padding(.top, 8)
 
+            Toggle(isOn: $prefs.autoplayNext) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Autoplay next")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("When something ends, start the creator's next post after a countdown.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                }
+            }
+            .frame(maxWidth: 700)
+
             Button {
                 auth.signOut()
             } label: {

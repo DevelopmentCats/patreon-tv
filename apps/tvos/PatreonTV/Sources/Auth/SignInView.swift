@@ -11,6 +11,10 @@ import SwiftUI
 
 struct SignInView: View {
 
+    /// True when the user's stored session was rejected mid-use — shows a
+    /// "session expired" banner so it's clear why they're back here.
+    var sessionExpired: Bool = false
+
     @Environment(AuthStore.self) private var auth
     @State private var showPairing = false
 
@@ -51,13 +55,34 @@ struct SignInView: View {
                 .frame(height: 160)
                 .accessibilityLabel("PatreonTV")
 
+            if sessionExpired {
+                HStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Your Patreon session expired. Link your TV again to keep watching.")
+                        .foregroundStyle(.white.opacity(0.9))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+                .font(.title3.weight(.medium))
+                .padding(.horizontal, 32)
+                .padding(.vertical, 18)
+                .frame(maxWidth: 900)
+                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+                .accessibilityElement(children: .combine)
+            }
+
             VStack(spacing: 12) {
                 Text("Watch your Patreon creators on the big screen.")
                     .font(.title2)
                     .foregroundStyle(.white.opacity(0.85))
-                Text("Sign in with your Patreon account to get started.")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.6))
+                Text(
+                    sessionExpired
+                        ? "Sign in with Patreon again to reconnect this TV."
+                        : "Sign in with your Patreon account to get started."
+                )
+                .font(.title3)
+                .foregroundStyle(.white.opacity(0.6))
             }
             .multilineTextAlignment(.center)
 

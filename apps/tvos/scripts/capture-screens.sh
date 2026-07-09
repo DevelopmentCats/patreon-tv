@@ -24,7 +24,7 @@ QUERY="${QUERY:-cold}"          # seed term for the search screen
 BUNDLE_ID="com.patreontv.PatreonTV"
 SCHEME="PatreonTV"
 OUT="screenshots"
-SCREENS=(signin pairing home creators search settings postDetail creator player)
+SCREENS=(signin sessionExpired pairing home creators search settings postDetail creator player audioPlayer upnext)
 
 cd "$(dirname "$0")/.."
 mkdir -p "$OUT"

@@ -100,6 +100,53 @@ final class MediaPlaybackResolverTests: XCTestCase {
         XCTAssertEqual(source?.url.lastPathComponent, "best.m3u8")
     }
 
+    // MARK: Kind classification
+
+    func test_audio_mimetype_classified_as_audio() throws {
+        let doc = try document(mediaJSON: """
+          {
+            "type": "media", "id": "m1",
+            "attributes": {
+              "mimetype": "audio/mpeg",
+              "download_url": "https://c10.patreonusercontent.com/episode.mp3"
+            }
+          }
+        """)
+        XCTAssertEqual(MediaPlaybackResolver.resolve(from: doc)?.kind, .audio)
+    }
+
+    func test_podcast_post_type_classified_as_audio_without_mimetype() throws {
+        let json = """
+        {
+          "data": {
+            "type": "post", "id": "1",
+            "attributes": { "title": "Ep", "post_type": "podcast" }
+          },
+          "included": [{
+            "type": "media", "id": "m1",
+            "attributes": {
+              "display": { "url": "https://stream.mux.com/abc.m3u8" }
+            }
+          }]
+        }
+        """.data(using: .utf8)!
+        let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
+        XCTAssertEqual(MediaPlaybackResolver.resolve(from: doc)?.kind, .audio)
+    }
+
+    func test_video_post_classified_as_video() throws {
+        let doc = try document(mediaJSON: """
+          {
+            "type": "media", "id": "m1",
+            "attributes": {
+              "mimetype": "video/mp4",
+              "download_url": "https://c10.patreonusercontent.com/file.mp4"
+            }
+          }
+        """)
+        XCTAssertEqual(MediaPlaybackResolver.resolve(from: doc)?.kind, .video)
+    }
+
     func test_no_media_returns_nil() throws {
         let json = """
         { "data": { "type": "post", "id": "1", "attributes": { "title": "T" } } }

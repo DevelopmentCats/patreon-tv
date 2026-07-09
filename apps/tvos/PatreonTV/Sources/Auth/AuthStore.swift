@@ -22,6 +22,9 @@ final class AuthStore {
     enum State: Equatable {
         case unknown
         case signedOut
+        /// The stored session was definitively rejected mid-use (401/403).
+        /// Distinct from .signedOut so the sign-in screen can explain why.
+        case sessionExpired
         case signedIn(userID: String)
     }
 
@@ -32,6 +35,17 @@ final class AuthStore {
     private let sessionKey = "patreon_session_id"
     private let userIDKey = "patreon_user_id"
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Auth")
+    private var isVerifyingAuthFailure = false
+
+    init() {
+        // Any 401 from the API layer triggers a re-verification; if the
+        // session really is dead we surface the re-pair screen instead of
+        // leaving each content screen showing a generic error.
+        PatreonClient.shared.authFailureHandler = { [weak self] in
+            guard let self else { return }
+            Task { await self.handleAuthFailure() }
+        }
+    }
 
     /// Called from `.task` on app launch. Reads the stored session_id and
     /// verifies it against `/api/current_user`. If valid, transitions to
@@ -59,10 +73,7 @@ final class AuthStore {
             log.error("Session restore failed: \(String(describing: error))")
             if Self.shouldClearSession(after: error) {
                 // Patreon definitively rejected the session — clear and re-auth.
-                keychain.remove(forKey: sessionKey)
-                keychain.remove(forKey: userIDKey)
-                PatreonClient.shared.clearSession()
-                state = .signedOut
+                expireSession()
             } else if let storedUserID = keychain.string(forKey: userIDKey), !storedUserID.isEmpty {
                 // Transient error — keep the credential and proceed. Content
                 // screens show their own retryable errors while offline.
@@ -116,5 +127,38 @@ final class AuthStore {
         currentUser = nil
         state = .signedOut
         log.info("Signed out")
+    }
+
+    // MARK: - Mid-session expiry
+
+    /// Called (debounced) by PatreonClient when a request 401s mid-session.
+    /// Re-verifies against `/api/current_user`; only a definitive rejection
+    /// there tears the session down, so a flaky endpoint can't log us out.
+    func handleAuthFailure() async {
+        guard case .signedIn = state, !isVerifyingAuthFailure else { return }
+        isVerifyingAuthFailure = true
+        defer { isVerifyingAuthFailure = false }
+
+        do {
+            let user = try await PatreonClient.shared.currentUser()
+            // Session is actually fine — the 401 was endpoint-specific noise.
+            currentUser = user
+            log.info("Auth re-verification passed; keeping session")
+        } catch {
+            if Self.shouldClearSession(after: error) {
+                log.error("Session rejected mid-use — entering re-pair flow")
+                expireSession()
+            } else {
+                log.info("Auth re-verification hit transient error; keeping session")
+            }
+        }
+    }
+
+    private func expireSession() {
+        keychain.remove(forKey: sessionKey)
+        keychain.remove(forKey: userIDKey)
+        PatreonClient.shared.clearSession()
+        currentUser = nil
+        state = .sessionExpired
     }
 }

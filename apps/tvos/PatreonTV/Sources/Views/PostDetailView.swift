@@ -17,6 +17,17 @@ struct PostDetailView: View {
     /// /play), playback starts as soon as the post loads.
     var autoplay: Bool = false
 
+    init(postID: String, autoplay: Bool = false) {
+        self.postID = postID
+        self.autoplay = autoplay
+        _currentPostID = State(initialValue: postID)
+    }
+
+    /// The post currently shown/playing. Starts as `postID` and advances when
+    /// the user accepts an Up Next suggestion.
+    @State private var currentPostID: String
+    /// The next post queued by the Up Next overlay after playback finishes.
+    @State private var upNext: Post?
     @State private var post: Post?
     @State private var campaign: Campaign?
     @State private var videoDuration: Double?
@@ -46,17 +57,26 @@ struct PostDetailView: View {
         .task { await load() }
         .background(PatreonColors.background.ignoresSafeArea())
         .fullScreenCover(item: $playbackSource) { source in
-            PlayerView(
-                source: source,
-                title: post?.attributes.title ?? "",
-                postID: postID,
-                resumeSeconds: PlaybackProgressStore.shared.progress(for: postID)?.positionSeconds,
-                onPlaybackFailure: { message in
-                    playbackSource = nil
-                    playbackErrorMessage = message
+            ZStack {
+                player(for: source)
+                    // Changing the source must rebuild the player — the host VC
+                    // configures its AVPlayer exactly once.
+                    .id(source.id)
+                    .ignoresSafeArea()
+
+                if let next = upNext {
+                    UpNextOverlayView(
+                        post: next,
+                        creatorName: campaign?.attributes.name,
+                        countdownSeconds: ContentPreferences.shared.autoplayNext ? 10 : nil,
+                        onPlay: { Task { await playNext(next) } },
+                        onDismiss: {
+                            upNext = nil
+                            playbackSource = nil
+                        }
+                    )
                 }
-            )
-            .ignoresSafeArea()
+            }
         }
         .alert(
             "Playback Problem",
@@ -69,6 +89,45 @@ struct PostDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(playbackErrorMessage ?? "")
+        }
+    }
+
+    /// Audio posts get the custom now-playing screen; video uses the native
+    /// AVPlayerViewController wrapper.
+    @ViewBuilder
+    private func player(for source: MediaPlaybackSource) -> some View {
+        switch source.kind {
+        case .audio:
+            AudioPlayerView(
+                source: source,
+                post: post,
+                campaign: campaign,
+                resumeSeconds: PlaybackProgressStore.shared.progress(for: currentPostID)?.positionSeconds,
+                onPlaybackFailure: { message in
+                    playbackSource = nil
+                    playbackErrorMessage = message
+                },
+                onPlaybackEnded: {
+                    Task { await handlePlaybackEnded() }
+                }
+            )
+        case .video:
+            PlayerView(
+                source: source,
+                title: post?.attributes.title ?? "",
+                postID: currentPostID,
+                resumeSeconds: PlaybackProgressStore.shared.progress(for: currentPostID)?.positionSeconds,
+                post: post,
+                campaign: campaign,
+                duration: videoDuration,
+                onPlaybackFailure: { message in
+                    playbackSource = nil
+                    playbackErrorMessage = message
+                },
+                onPlaybackEnded: {
+                    Task { await handlePlaybackEnded() }
+                }
+            )
         }
     }
 
@@ -238,7 +297,7 @@ struct PostDetailView: View {
 
                     if resumeProgress != nil {
                         Button {
-                            PlaybackProgressStore.shared.clear(postID: postID)
+                            PlaybackProgressStore.shared.clear(postID: currentPostID)
                             resumeProgressStamp = UUID()
                             Task { await prepareAndPlay() }
                         } label: {
@@ -322,7 +381,7 @@ struct PostDetailView: View {
 
     private var resumeProgress: PlaybackProgress? {
         _ = resumeProgressStamp
-        guard let p = PlaybackProgressStore.shared.progress(for: postID),
+        guard let p = PlaybackProgressStore.shared.progress(for: currentPostID),
               !p.isFinished,
               p.positionSeconds > 5
         else { return nil }
@@ -360,7 +419,7 @@ struct PostDetailView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let doc = try await PatreonClient.shared.post(id: postID)
+            let doc = try await PatreonClient.shared.post(id: currentPostID)
             apply(document: doc)
         } catch {
             errorMessage = (error as? PatreonError)?.errorDescription
@@ -406,19 +465,51 @@ struct PostDetailView: View {
             ?? doc.data.attributes.posterImageURL
     }
 
+    // MARK: - Up Next
+
+    /// Playback finished: queue the creator's next post if one exists,
+    /// otherwise just close the player.
+    private func handlePlaybackEnded() async {
+        resumeProgressStamp = UUID()   // finished — re-read progress
+        guard let campaignID = campaign?.id,
+              let next = await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
+        else {
+            playbackSource = nil
+            return
+        }
+        upNext = next
+    }
+
+    /// Advance to the queued post: swap the detail view's subject and start
+    /// playback with a freshly fetched URL (Mux tokens are ephemeral).
+    private func playNext(_ next: Post) async {
+        upNext = nil
+        currentPostID = next.id
+        post = next            // provisional; prepareAndPlay refreshes the full doc
+        heroImageURL = next.attributes.posterImageURL
+        videoDuration = nil
+        resumeProgressStamp = UUID()
+
+        await prepareAndPlay()
+        if playbackErrorMessage != nil {
+            // Close the cover so the alert (attached to the detail view) shows.
+            playbackSource = nil
+        }
+    }
+
     /// Re-fetch post on play so Mux HLS tokens are fresh (~24h expiry).
     private func prepareAndPlay() async {
         isPreparingPlayback = true
         defer { isPreparingPlayback = false }
 
         do {
-            let doc = try await PatreonClient.shared.post(id: postID)
+            let doc = try await PatreonClient.shared.post(id: currentPostID)
             apply(document: doc)
             guard let source = MediaPlaybackResolver.resolve(from: doc) else {
                 // The detail view is still showing (post != nil), so surface
                 // this via the playback alert rather than errorMessage, which
                 // only renders when the whole page failed to load.
-                playbackErrorMessage = "No playable video URL was returned for this post."
+                playbackErrorMessage = "No playable media URL was returned for this post."
                 mediaURL = nil
                 return
             }

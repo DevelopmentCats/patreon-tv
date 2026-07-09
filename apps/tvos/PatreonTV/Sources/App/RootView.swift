@@ -19,6 +19,9 @@ struct RootView: View {
             case .signedOut:
                 SignInView()
                     .transition(.opacity)
+            case .sessionExpired:
+                SignInView(sessionExpired: true)
+                    .transition(.opacity)
             case .signedIn:
                 HomeShell()
                     .transition(.opacity)

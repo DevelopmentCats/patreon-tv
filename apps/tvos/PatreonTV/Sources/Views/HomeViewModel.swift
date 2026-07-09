@@ -23,12 +23,32 @@ final class HomeViewModel {
         case error(String)
     }
 
+    /// One shelf per supported creator: their campaign plus the posts we know
+    /// about, newest first, with an independent pagination cursor.
+    struct CreatorRow: Identifiable {
+        let campaign: Campaign
+        var posts: [Post]
+        /// Cursor into /campaigns/{id}/posts. Meaningful once didFetchDirect.
+        var cursor: String?
+        /// True after the first direct campaignPosts fetch (feed grouping only
+        /// sees the posts that happened to be in the stream window).
+        var didFetchDirect = false
+        var isFetching = false
+        var id: String { campaign.id }
+
+        var newestPublishedAt: String? { posts.first?.attributes.publishedAt }
+    }
+
     private(set) var state: ViewState = .idle
     private(set) var homeFeed: [Post] = []
     private(set) var continueWatching: [Post] = []
+    private(set) var creatorRows: [CreatorRow] = []
 
     /// Post ID → Campaign lookup, populated from the included array.
     private(set) var campaignsByPostID: [String: Campaign] = [:]
+
+    /// Campaign ID → Campaign, merged from feed includes and memberships.
+    private var campaignsByID: [String: Campaign] = [:]
 
     /// The hero band's default when no card is focused yet.
     var heroFallback: FocusedPoster? {
@@ -45,9 +65,6 @@ final class HomeViewModel {
         )
     }
 
-    private var nextCursor: String?
-    private var isFetchingMore = false
-
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Home")
 
     func load() async {
@@ -60,7 +77,6 @@ final class HomeViewModel {
         do {
             let page = try await PatreonClient.shared.homeFeed(limit: 30)
             homeFeed = page.data
-            nextCursor = page.nextCursor
             indexCampaigns(from: page.included ?? [])
             rebuildContinueWatching()
             writeTopShelfSnapshot()
@@ -68,26 +84,127 @@ final class HomeViewModel {
         } catch {
             log.error("Home feed load failed: \(String(describing: error))")
             state = .error(errorMessage(from: error))
+            return
+        }
+
+        // Creator rows load after the first paint — the hero and merged shelf
+        // are already interactive while memberships and per-creator pages come in.
+        await buildCreatorRows()
+    }
+
+    // MARK: - Per-creator rows
+
+    /// Builds the per-creator shelves: seeds one row per current membership
+    /// (so creators appear even when the feed window missed them), fills each
+    /// row with the feed posts we already have, then fetches a first direct
+    /// page for rows the feed left empty (bounded).
+    private func buildCreatorRows() async {
+        // 1. Seed from memberships — best source for "creators you support".
+        //    Non-fatal if it fails; the feed grouping still yields rows.
+        do {
+            let doc = try await PatreonClient.shared.members()
+            var supported: [String: Campaign] = [:]
+            for inc in doc.included ?? [] {
+                if case .campaign(let c) = inc { supported[c.id] = c }
+            }
+            for member in doc.data where member.isCurrentRelationship {
+                if let cid = member.relationships?.campaign?.data?.id,
+                   let campaign = supported[cid] {
+                    campaignsByID[cid] = campaign
+                }
+            }
+        } catch {
+            log.error("Membership seed for creator rows failed: \(String(describing: error))")
+        }
+
+        // 2. Group the feed by campaign.
+        var postsByCampaign: [String: [Post]] = [:]
+        for post in homeFeed {
+            guard let cid = post.relationships?.campaign?.data?.id else { continue }
+            postsByCampaign[cid, default: []].append(post)
+        }
+
+        var rows = campaignsByID.values.map { campaign in
+            CreatorRow(campaign: campaign, posts: postsByCampaign[campaign.id] ?? [], cursor: nil)
+        }
+
+        // 3. Fill empty rows with a first direct page, bounded so a user with
+        //    many creators doesn't trigger a request storm.
+        let emptyIDs = rows.filter(\.posts.isEmpty).map(\.id).prefix(8)
+        if !emptyIDs.isEmpty {
+            let pages = await withTaskGroup(of: (String, Page<Post>?).self) { group in
+                for cid in emptyIDs {
+                    group.addTask { @MainActor in
+                        let page = try? await PatreonClient.shared.campaignPosts(campaignID: cid, limit: 12)
+                        return (cid, page)
+                    }
+                }
+                var out: [String: Page<Post>] = [:]
+                for await (cid, page) in group {
+                    if let page { out[cid] = page }
+                }
+                return out
+            }
+            for index in rows.indices {
+                guard let page = pages[rows[index].id] else { continue }
+                rows[index].posts = page.data
+                rows[index].cursor = page.nextCursor
+                rows[index].didFetchDirect = true
+            }
+        }
+
+        creatorRows = sortedRows(rows)
+    }
+
+    /// Paginate one creator's row when the user nears its end. The first call
+    /// swaps the row from feed-derived posts to the direct campaign feed.
+    func loadMoreCreatorRow(campaignID: String, current: Post) async {
+        guard let index = creatorRows.firstIndex(where: { $0.id == campaignID }) else { return }
+        let row = creatorRows[index]
+        guard !row.isFetching else { return }
+        guard let postIndex = row.posts.firstIndex(where: { $0.id == current.id }),
+              postIndex >= row.posts.count - 3
+        else { return }
+        // Exhausted: already walked the direct feed to its end.
+        if row.didFetchDirect, row.cursor == nil { return }
+
+        creatorRows[index].isFetching = true
+        defer {
+            if let i = creatorRows.firstIndex(where: { $0.id == campaignID }) {
+                creatorRows[i].isFetching = false
+            }
+        }
+
+        do {
+            let page = try await PatreonClient.shared.campaignPosts(
+                campaignID: campaignID,
+                cursor: row.didFetchDirect ? row.cursor : nil,
+                limit: 20
+            )
+            guard let i = creatorRows.firstIndex(where: { $0.id == campaignID }) else { return }
+            var merged = creatorRows[i].posts
+            let known = Set(merged.map(\.id))
+            merged.append(contentsOf: page.data.filter { !known.contains($0.id) })
+            merged.sort { ($0.attributes.publishedAt ?? "") > ($1.attributes.publishedAt ?? "") }
+            creatorRows[i].posts = merged
+            creatorRows[i].cursor = page.nextCursor
+            creatorRows[i].didFetchDirect = true
+        } catch {
+            log.error("Creator row pagination failed for \(campaignID): \(String(describing: error))")
         }
     }
 
-    func loadMoreIfNeeded(current: Post) async {
-        guard let cursor = nextCursor, !isFetchingMore,
-              let index = homeFeed.firstIndex(where: { $0.id == current.id }),
-              index >= homeFeed.count - 5
-        else { return }
-
-        isFetchingMore = true
-        defer { isFetchingMore = false }
-
-        do {
-            let page = try await PatreonClient.shared.homeFeed(cursor: cursor, limit: 30)
-            homeFeed.append(contentsOf: page.data)
-            nextCursor = page.nextCursor
-            indexCampaigns(from: page.included ?? [])
-            rebuildContinueWatching()
-        } catch {
-            log.error("Home feed pagination failed: \(String(describing: error))")
+    /// Rows ordered by most recent post; rows still awaiting content sink to
+    /// the bottom (the view hides empty ones).
+    private func sortedRows(_ rows: [CreatorRow]) -> [CreatorRow] {
+        rows.sorted { a, b in
+            switch (a.newestPublishedAt, b.newestPublishedAt) {
+            case (let x?, let y?): return x > y
+            case (_?, nil): return true
+            case (nil, _?): return false
+            case (nil, nil):
+                return (a.campaign.attributes.name ?? "") < (b.campaign.attributes.name ?? "")
+            }
         }
     }
 
@@ -123,17 +240,16 @@ final class HomeViewModel {
     /// posts that reference them. Cheaper than a per-post lookup by ID because
     /// posts share creators.
     private func indexCampaigns(from included: [Included]) {
-        var campaignByID: [String: Campaign] = [:]
         for inc in included {
             if case .campaign(let c) = inc {
-                campaignByID[c.id] = c
+                campaignsByID[c.id] = c
             }
         }
         // Now walk the currently-known posts and update the map. This runs
         // after every page, so newly-fetched posts get their campaigns.
         for post in homeFeed {
             if let campaignID = post.relationships?.campaign?.data?.id,
-               let campaign = campaignByID[campaignID] {
+               let campaign = campaignsByID[campaignID] {
                 campaignsByPostID[post.id] = campaign
             }
         }

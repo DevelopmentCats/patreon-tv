@@ -11,11 +11,16 @@
 import Foundation
 import os.log
 
-enum MediaPlaybackSource: Sendable, Identifiable {
-    case direct(URL)
+struct MediaPlaybackSource: Sendable, Identifiable {
+    enum Kind: Sendable {
+        case video
+        case audio
+    }
+
+    let url: URL
+    let kind: Kind
 
     var id: String { url.absoluteString }
-    var url: URL { switch self { case .direct(let u): u } }
 }
 
 enum MediaPlaybackResolver {
@@ -23,7 +28,7 @@ enum MediaPlaybackResolver {
     private static let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Playback")
 
     static func resolve(from doc: SingleResource<Post>) -> MediaPlaybackSource? {
-        var best: (score: Int, url: URL)?
+        var best: (score: Int, url: URL, mimetype: String?)?
 
         for inc in doc.included ?? [] {
             guard case .media(let media) = inc else { continue }
@@ -38,20 +43,38 @@ enum MediaPlaybackResolver {
 
         guard let best else { return nil }
 
-        log.info("Selected playback URL host=\(best.url.host ?? "?") ext=\(best.url.pathExtension)")
-        return .direct(best.url)
+        let kind = kind(for: doc.data, mimetype: best.mimetype, url: best.url)
+        log.info("Selected playback URL host=\(best.url.host ?? "?") ext=\(best.url.pathExtension) kind=\(String(describing: kind))")
+        return MediaPlaybackSource(url: best.url, kind: kind)
+    }
+
+    /// Audio vs video, so the presenter can route to the right player. Media
+    /// mimetype is the strongest signal; the post type breaks ties (podcast
+    /// episodes are often served as HLS, which carries no audio/ prefix).
+    static func kind(for post: Post, mimetype: String?, url: URL) -> MediaPlaybackSource.Kind {
+        if mimetype?.hasPrefix("audio/") == true { return .audio }
+        if mimetype?.hasPrefix("video/") == true { return .video }
+        if ["mp3", "m4a", "aac", "wav", "flac"].contains(url.pathExtension.lowercased()) {
+            return .audio
+        }
+        switch post.attributes.postType {
+        case .audioFile, .audioEmbed, .podcast:
+            return .audio
+        default:
+            return .video
+        }
     }
 
     private static func consider(
         url: URL,
         mimetype: String?,
         label: String,
-        best: inout (score: Int, url: URL)?
+        best: inout (score: Int, url: URL, mimetype: String?)?
     ) {
         let score = score(url: url, mimetype: mimetype, label: label)
         guard score > 0 else { return }
         if best == nil || score > best!.score {
-            best = (score, url)
+            best = (score, url, mimetype)
         }
     }
 
