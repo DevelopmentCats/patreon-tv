@@ -66,28 +66,34 @@ struct HomeView: View {
         // children of a LazyVStack. Shelves inside stay lazy via LazyHStack.
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 40) {
-                // Canonical tvOS hero: takes ~80% of the viewport with a
-                // .focusSection() so the first shelf peeks below and focus can
-                // travel back up through it to the tab bar.
-                HeroBand(fallback: heroFallback)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // Hero + featured Play button form ONE full-width focus
+                // section. Directional focus only moves to an *adjacent*
+                // focusable frame (WWDC21 "Direct and reflect focus in
+                // SwiftUI"), so without this, swiping up from any shelf card
+                // not sitting directly above the little Play pill found no
+                // target and focus was trapped in the shelf. With the section,
+                // the whole hero band accepts focus, delivers it to the Play
+                // button, and one more swipe up reveals the tab bar.
+                VStack(alignment: .leading, spacing: 40) {
+                    HeroBand(fallback: heroFallback)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                // A visible, focusable "Play featured" row between the hero and
-                // the shelves. It's the focus stepping-stone that lets "up" from
-                // the first shelf reach here, then continue to the tab bar.
-                if let featured = heroFallback {
-                    Button {
-                        router.pending = .post(id: featured.postID, autoplay: true)
-                    } label: {
-                        Label("Play", systemImage: "play.fill")
-                            .font(.title3.weight(.semibold))
-                            .padding(.horizontal, 44)
-                            .padding(.vertical, 16)
+                    if let featured = heroFallback {
+                        Button {
+                            router.pending = .post(id: featured.postID, autoplay: true)
+                        } label: {
+                            Label("Play", systemImage: "play.fill")
+                                .font(.title3.weight(.semibold))
+                                .padding(.horizontal, 44)
+                                .padding(.vertical, 16)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(PatreonColors.brand)
+                        .padding(.leading, 60)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PatreonColors.brand)
-                    .padding(.leading, 60)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focusSection()
 
                 if !continueWatching.isEmpty {
                     Shelf(
