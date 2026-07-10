@@ -20,9 +20,7 @@ patreon-tv/
 │                       (Astro → Cloudflare Pages; pairing API lives in
 │                       site/functions/ as Pages Functions backed by KV)
 ├── harness/            Node scripts for live-testing the Patreon API
-├── docs/               User-facing docs (WIP)
-├── skills/             Vendored Agent Skills (SwiftUI Expert, tvOS Design, Xcode Setup)
-└── .agents/skills/     Symlinks to the vendored skills (repo-wide auto-load)
+└── docs/               User-facing docs (WIP)
 ```
 
 ## Getting started (on a Mac)
