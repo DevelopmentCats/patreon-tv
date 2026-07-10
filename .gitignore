@@ -62,6 +62,8 @@ secrets/
 .vscode/
 .idea/
 *.swp
+# SweetPad / xcode-build-server BSP config (machine-specific paths)
+buildServer.json
 
 # ============================================================
 # OS
