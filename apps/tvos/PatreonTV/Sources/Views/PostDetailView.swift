@@ -35,6 +35,10 @@ struct PostDetailView: View {
     @State private var mediaURL: URL?
     @State private var errorMessage: String?
     @State private var playbackErrorMessage: String?
+    /// Set while the player cover is still on screen; promoted to
+    /// `playbackErrorMessage` in the cover's `onDismiss` so the alert never
+    /// tries to present on top of the (still-dismissing) full-screen cover.
+    @State private var pendingPlaybackError: String?
     @State private var isLoading = true
     @State private var playbackSource: MediaPlaybackSource?
     @State private var isPreparingPlayback = false
@@ -56,7 +60,13 @@ struct PostDetailView: View {
         }
         .task { await load() }
         .background(PatreonColors.background.ignoresSafeArea())
-        .fullScreenCover(item: $playbackSource) { source in
+        .fullScreenCover(item: $playbackSource, onDismiss: {
+            // The cover is fully gone now — safe to raise a deferred error alert.
+            if let pending = pendingPlaybackError {
+                pendingPlaybackError = nil
+                playbackErrorMessage = pending
+            }
+        }) { source in
             ZStack {
                 player(for: source)
                     // Changing the source must rebuild the player — the host VC
@@ -104,8 +114,7 @@ struct PostDetailView: View {
                 campaign: campaign,
                 resumeSeconds: PlaybackProgressStore.shared.progress(for: currentPostID)?.positionSeconds,
                 onPlaybackFailure: { message in
-                    playbackSource = nil
-                    playbackErrorMessage = message
+                    presentPlaybackError(message)
                 },
                 onPlaybackEnded: {
                     Task { await handlePlaybackEnded() }
@@ -121,8 +130,7 @@ struct PostDetailView: View {
                 campaign: campaign,
                 duration: videoDuration,
                 onPlaybackFailure: { message in
-                    playbackSource = nil
-                    playbackErrorMessage = message
+                    presentPlaybackError(message)
                 },
                 onPlaybackEnded: {
                     Task { await handlePlaybackEnded() }
@@ -491,9 +499,17 @@ struct PostDetailView: View {
         resumeProgressStamp = UUID()
 
         await prepareAndPlay()
-        if playbackErrorMessage != nil {
-            // Close the cover so the alert (attached to the detail view) shows.
+    }
+
+    /// Surface a playback error via the alert. If the player cover is still on
+    /// screen, dismiss it first and defer the alert to the cover's `onDismiss`
+    /// — presenting an alert over a live full-screen cover is rejected by UIKit.
+    private func presentPlaybackError(_ message: String) {
+        if playbackSource != nil {
+            pendingPlaybackError = message
             playbackSource = nil
+        } else {
+            playbackErrorMessage = message
         }
     }
 
@@ -509,7 +525,7 @@ struct PostDetailView: View {
                 // The detail view is still showing (post != nil), so surface
                 // this via the playback alert rather than errorMessage, which
                 // only renders when the whole page failed to load.
-                playbackErrorMessage = "No playable media URL was returned for this post."
+                presentPlaybackError("No playable media URL was returned for this post.")
                 mediaURL = nil
                 return
             }
@@ -517,8 +533,9 @@ struct PostDetailView: View {
             log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
             playbackSource = source
         } catch {
-            playbackErrorMessage = (error as? PatreonError)?.errorDescription
-                ?? error.localizedDescription
+            presentPlaybackError(
+                (error as? PatreonError)?.errorDescription ?? error.localizedDescription
+            )
         }
     }
 }

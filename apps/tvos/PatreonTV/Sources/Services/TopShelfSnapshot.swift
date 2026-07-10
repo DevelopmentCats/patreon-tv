@@ -20,6 +20,18 @@ enum AppGroup {
     static var containerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
     }
+
+    /// On tvOS the App Group container *root* is read-only — attempting to write
+    /// there fails with EPERM ("Operation not permitted"). Only the
+    /// `Library/Caches` subdirectory is writable, so all shared files live
+    /// there. Content is regenerable (a top-shelf snapshot), so the system
+    /// being free to purge Caches is fine.
+    static var sharedCachesURL: URL? {
+        guard let root = containerURL else { return nil }
+        let caches = root.appendingPathComponent("Library/Caches", isDirectory: true)
+        try? FileManager.default.createDirectory(at: caches, withIntermediateDirectories: true)
+        return caches
+    }
 }
 
 /// Serializable snapshot the main app writes and the extension reads.
@@ -40,7 +52,7 @@ struct TopShelfSnapshot: Codable {
     private static let filename = "top-shelf.json"
 
     /// Directory injectable for tests (round-trip against a temp dir).
-    static func load(from directory: URL? = AppGroup.containerURL) -> TopShelfSnapshot? {
+    static func load(from directory: URL? = AppGroup.sharedCachesURL) -> TopShelfSnapshot? {
         guard let dir = directory else { return nil }
         let url = dir.appendingPathComponent(filename)
         guard let data = try? Data(contentsOf: url),
@@ -49,7 +61,7 @@ struct TopShelfSnapshot: Codable {
         return snapshot
     }
 
-    func save(to directory: URL? = AppGroup.containerURL) throws {
+    func save(to directory: URL? = AppGroup.sharedCachesURL) throws {
         guard let dir = directory else {
             throw NSError(domain: "TopShelfSnapshot", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "App Group container not available"])
