@@ -11,6 +11,9 @@ options:
   # Modern Xcode folder-sync: adding .swift files to disk automatically includes them.
   # Requires Xcode 15+.
   minimumXcodeGenVersion: "2.42.0"
+  # Sets LastUpgradeCheck so Xcode stops prompting "Update to recommended
+  # settings". Bump when upgrading Xcode.
+  xcodeVersion: "26.6"
 
 settings:
   base:
