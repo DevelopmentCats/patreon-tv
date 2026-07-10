@@ -74,6 +74,12 @@ final class PatreonClient {
 
     private static func makeDefaultSession() -> URLSession {
         let config = URLSessionConfiguration.default
+        #if DEBUG
+        // Gallery offline mode: stub the entire API (UI tests, screenshots).
+        if GalleryConfig.isActive, GalleryConfig.mock {
+            config.protocolClasses = [GalleryMockURLProtocol.self]
+        }
+        #endif
         config.httpAdditionalHeaders = [
             "Accept": "application/json",
             "User-Agent": Self.userAgent,

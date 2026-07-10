@@ -11,6 +11,8 @@
 //  Env vars:
 //    GALLERY_SCREEN      signin | sessionExpired | pairing | home | creators | search | settings | postDetail | creator | player | audioPlayer | upnext
 //    PATREON_SESSION_ID  session_id cookie to authenticate with
+//    GALLERY_MOCK        "1" to stub the whole Patreon API offline (see
+//                        GalleryMockURLProtocol) — used by UI tests
 //    GALLERY_MATURE      "1" to show mature content
 //    GALLERY_QUERY       seed term for the search screen
 //    GALLERY_POST_ID     optional explicit post id for postDetail / player
@@ -27,6 +29,7 @@ enum GalleryConfig {
     static var campaignID: String? { env["GALLERY_CAMPAIGN_ID"] }
     static var query: String? { env["GALLERY_QUERY"] }
     static var mature: Bool { env["GALLERY_MATURE"] == "1" }
+    static var mock: Bool { env["GALLERY_MOCK"] == "1" }
     static var isActive: Bool { screen?.isEmpty == false }
 }
 
@@ -127,7 +130,17 @@ struct GalleryHostView: View {
         ContentPreferences.shared.showMatureContent = GalleryConfig.mature
         let screen = GalleryConfig.screen ?? ""
 
-        if !["signin", "sessionExpired"].contains(screen), let sid = GalleryConfig.sessionID, !sid.isEmpty {
+        if GalleryConfig.mock {
+            // Offline mode: the stub protocol answers every API call, so a
+            // placeholder cookie "signs in" fine. Seed playback progress so
+            // the Continue Watching shelf renders.
+            for id in GalleryMockData.continueWatchingIDs {
+                PlaybackProgressStore.shared.record(PlaybackProgress(
+                    postID: id, positionSeconds: 300, durationSeconds: 1200, lastUpdated: Date()
+                ))
+            }
+            await auth.completeSignIn(sessionID: "gallery-mock")
+        } else if !["signin", "sessionExpired"].contains(screen), let sid = GalleryConfig.sessionID, !sid.isEmpty {
             await auth.completeSignIn(sessionID: sid)
         }
 

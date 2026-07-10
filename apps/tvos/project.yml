@@ -75,10 +75,12 @@ targets:
         SUPPORTS_MACCATALYST: NO
       configs:
         # Pairing service origin, surfaced to the app via Info.plist (see
-        # PairingConfig). Not hardcoded — override PAIRING_BASE_URL for local dev
-        # (e.g. site/scripts/dev-pairing.sh points it at your LAN wrangler).
+        # PairingConfig). Defaults to the live service in both configs so a
+        # plain Debug build pairs against patreontv.com out of the box. For
+        # local wrangler testing, override PAIRING_BASE_URL (e.g.
+        # site/scripts/dev-pairing.sh points it at your LAN wrangler).
         Debug:
-          PAIRING_BASE_URL: http://127.0.0.1:8788
+          PAIRING_BASE_URL: https://patreontv.com
         Release:
           PAIRING_BASE_URL: https://patreontv.com
     dependencies:
@@ -129,6 +131,21 @@ targets:
         TARGETED_DEVICE_FAMILY: "3"
         GENERATE_INFOPLIST_FILE: "YES"
 
+  PatreonTVUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PatreonTVUITests
+    dependencies:
+      - target: PatreonTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.patreontv.PatreonTVUITests
+        TARGETED_DEVICE_FAMILY: "3"
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_TARGET_NAME: PatreonTV
+
 packages:
   Nuke:
     url: https://github.com/kean/Nuke
@@ -143,6 +160,7 @@ schemes:
         PatreonTV: all
         PatreonTVTopShelf: all
         PatreonTVTests: [test]
+        PatreonTVUITests: [test]
     run:
       config: Debug
     test:
@@ -150,6 +168,7 @@ schemes:
       gatherCoverageData: true
       targets:
         - PatreonTVTests
+        - PatreonTVUITests
     profile:
       config: Release
     analyze:
