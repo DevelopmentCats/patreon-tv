@@ -5,6 +5,12 @@
 # ============================================================
 .internal/
 
+# Agent skills are workspace tooling, not app code. skills/ holds
+# the vendored content; .agents/skills/ symlinks into it for
+# auto-loading. Both stay local-only.
+skills/
+.agents/
+
 # ============================================================
 # Xcode / Swift / macOS
 # ============================================================

@@ -4,6 +4,10 @@ If you are an AI coding agent (Claude Code, Cursor, this Coder chat, etc.) worki
 
 ## Skills — installed at `.agents/skills/`
 
+> Workspace-only — `skills/` and `.agents/` are gitignored, like `.internal/`.
+> Available on the maintainer's workspace; skip this section if the folders
+> aren't present on your clone.
+
 Load and consult these before writing code in their domain:
 
 | Skill | Use when |
