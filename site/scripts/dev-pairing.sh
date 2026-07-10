@@ -31,25 +31,7 @@ cat > "$ROOT/.dev.vars" <<EOF
 PAIRING_PUBLIC_ORIGIN=${ORIGIN}
 EOF
 
-HARNESS_ENV="$ROOT/../harness/.env"
-if [[ -f "$HARNESS_ENV" ]]; then
-  echo "Loading Patreon OAuth credentials from harness/.env"
-  # shellcheck disable=SC1090
-  set -a
-  source "$HARNESS_ENV"
-  set +a
-  if [[ -n "${PATREON_CLIENT_ID:-}" && -n "${PATREON_CLIENT_SECRET:-}" ]]; then
-    cat >> "$ROOT/.dev.vars" <<EOF
-PATREON_CLIENT_ID=${PATREON_CLIENT_ID}
-PATREON_CLIENT_SECRET=${PATREON_CLIENT_SECRET}
-PATREON_REDIRECT_URI=${ORIGIN}/api/pairing/oauth/callback
-EOF
-    echo "OAuth enabled — register this redirect URI in the Patreon developer portal:"
-    echo "  ${ORIGIN}/api/pairing/oauth/callback"
-  fi
-else
-  echo "No harness/.env — OAuth disabled; use session_id paste on the link page."
-fi
+echo "Sign in on the link page by pasting your patreon.com session_id cookie."
 
 if [[ -f "$TVOS_PROJECT_YML" ]]; then
   # Point the app's Debug pairing origin at this LAN IP for the dev session,

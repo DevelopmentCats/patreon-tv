@@ -2,10 +2,6 @@ import { importSessionKey, isSealed, openSession, sealSession } from "./sessionC
 
 export interface PairingEnv {
   PAIRING: KVNamespace;
-  PATREON_CLIENT_ID?: string;
-  PATREON_CLIENT_SECRET?: string;
-  /** OAuth redirect, e.g. https://patreontv.com/api/pairing/oauth/callback */
-  PATREON_REDIRECT_URI?: string;
   /** Public site origin for link URLs, e.g. https://patreontv.com */
   PAIRING_PUBLIC_ORIGIN?: string;
   /**
@@ -24,8 +20,6 @@ export interface PairingRecord {
   expires_at: string;
   /** Sealed (AES-GCM) when PAIRING_SESSION_KEY is configured. */
   session_id?: string;
-  /** Random nonce binding the OAuth round-trip to this record (CSRF). */
-  oauth_nonce?: string;
 }
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -98,35 +92,6 @@ export async function readPairing(env: PairingEnv, code: string): Promise<Pairin
   const record = JSON.parse(raw) as PairingRecord;
   if (isExpired(record)) return null;
   return record;
-}
-
-/**
- * Attaches a fresh OAuth nonce to a pending record and returns it. The nonce
- * travels through the OAuth `state` parameter alongside the code, so a forged
- * callback that only knows the pairing code cannot complete the pairing.
- */
-export async function issueOAuthNonce(env: PairingEnv, code: string): Promise<string | null> {
-  const record = await readPairing(env, code);
-  if (!record || record.status !== "pending") return null;
-
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  const nonce = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-
-  const updated: PairingRecord = { ...record, oauth_nonce: nonce };
-  await env.PAIRING.put(pairingKey(code), JSON.stringify(updated), {
-    expirationTtl: remainingTtl(record),
-  });
-  return nonce;
-}
-
-export async function verifyOAuthNonce(
-  env: PairingEnv,
-  code: string,
-  nonce: string,
-): Promise<boolean> {
-  if (!nonce) return false;
-  const record = await readPairing(env, code);
-  return Boolean(record?.oauth_nonce) && record?.oauth_nonce === nonce;
 }
 
 /**
@@ -214,85 +179,4 @@ export function json(data: unknown, init: ResponseInit = {}): Response {
   headers.set("content-type", "application/json; charset=utf-8");
   headers.set("cache-control", "no-store");
   return new Response(JSON.stringify(data), { ...init, headers });
-}
-
-export const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) PatreonTV/0.1";
-
-export function parseSessionIDFromSetCookie(setCookie: string | null): string | null {
-  if (!setCookie) return null;
-  const match = setCookie.match(/(?:^|,|\s)session_id=([^;\s,]+)/i);
-  return match?.[1] ?? null;
-}
-
-export function parseAllSessionIDs(headers: Headers): string | null {
-  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
-  if (typeof getSetCookie === "function") {
-    for (const cookie of getSetCookie.call(headers)) {
-      const session = parseSessionIDFromSetCookie(cookie);
-      if (session) return session;
-    }
-  }
-  return parseSessionIDFromSetCookie(headers.get("set-cookie"));
-}
-
-/** Thrown by exchangeOAuthCode with a URL-safe, non-leaking error code. */
-export class OAuthExchangeError extends Error {
-  readonly code: string;
-  constructor(code: string) {
-    super(code);
-    this.code = code;
-  }
-}
-
-export async function exchangeOAuthCode(
-  env: PairingEnv,
-  oauthCode: string,
-  redirectUri: string,
-): Promise<{ access_token: string; refresh_token?: string }> {
-  if (!env.PATREON_CLIENT_ID || !env.PATREON_CLIENT_SECRET) {
-    throw new OAuthExchangeError("oauth_not_configured");
-  }
-
-  const body = new URLSearchParams({
-    code: oauthCode,
-    grant_type: "authorization_code",
-    client_id: env.PATREON_CLIENT_ID,
-    client_secret: env.PATREON_CLIENT_SECRET,
-    redirect_uri: redirectUri,
-  });
-
-  const resp = await fetch("https://www.patreon.com/api/oauth2/token", {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      "user-agent": USER_AGENT,
-    },
-    body,
-  });
-  if (!resp.ok) {
-    // Upstream bodies must never end up in redirect URLs (they leak into
-    // access logs and browser history) — map to a fixed code.
-    throw new OAuthExchangeError("token_exchange_failed");
-  }
-  const tokens = (await resp.json()) as { access_token?: string; refresh_token?: string };
-  if (!tokens.access_token) throw new OAuthExchangeError("token_exchange_failed");
-  return { access_token: tokens.access_token, refresh_token: tokens.refresh_token };
-}
-
-/** Best-effort: some Patreon API responses include a session_id Set-Cookie. */
-export async function bootstrapSessionFromAccessToken(accessToken: string): Promise<string | null> {
-  const resp = await fetch(
-    "https://www.patreon.com/api/current_user?fields[user]=full_name",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-        "User-Agent": USER_AGENT,
-        Referer: "https://www.patreon.com/",
-      },
-      redirect: "manual",
-    },
-  );
-  return parseAllSessionIDs(resp.headers);
 }

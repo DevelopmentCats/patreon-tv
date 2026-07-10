@@ -9,11 +9,9 @@ import {
   createPairing,
   formatCode,
   generateCode,
-  issueOAuthNonce,
   normalizeCode,
   pairingStatus,
   readPairing,
-  verifyOAuthNonce,
   type PairingEnv,
 } from "./pairing";
 import { importSessionKey, isSealed, openSession, sealSession } from "./sessionCrypto";
@@ -156,29 +154,6 @@ describe("pairing lifecycle", () => {
     const claim = await claimPairingSession(keylessEnv, record.code);
     expect(claim.status).toBe("missing");
     expect(claim.session_id).toBeUndefined();
-  });
-});
-
-describe("OAuth nonce", () => {
-  it("issues a nonce for pending records and verifies it", async () => {
-    const env = makeEnv();
-    const record = await createPairing(env);
-
-    const nonce = await issueOAuthNonce(env, record.code);
-    expect(nonce).toMatch(/^[0-9a-f]{32}$/);
-
-    expect(await verifyOAuthNonce(env, record.code, nonce!)).toBe(true);
-    expect(await verifyOAuthNonce(env, record.code, "wrong")).toBe(false);
-    expect(await verifyOAuthNonce(env, record.code, "")).toBe(false);
-  });
-
-  it("refuses to issue a nonce for completed or unknown codes", async () => {
-    const env = makeEnv();
-    const record = await createPairing(env);
-    await completePairing(env, record.code, "s");
-
-    expect(await issueOAuthNonce(env, record.code)).toBeNull();
-    expect(await issueOAuthNonce(env, "AAAA2222")).toBeNull();
   });
 });
 

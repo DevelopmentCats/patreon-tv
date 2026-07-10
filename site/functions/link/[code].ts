@@ -7,13 +7,10 @@ export const onRequestGet: PagesFunction<PairingEnv> = async ({ params, request,
     return Response.redirect(new URL("/", request.url).toString(), 302);
   }
 
-  const oauthEnabled = Boolean(env.PATREON_CLIENT_ID && env.PATREON_CLIENT_SECRET);
-
   const html = renderLinkPage({
     code,
     displayCode: formatCode(code),
     query: new URL(request.url).searchParams,
-    oauthEnabled,
     codeStatus: await pairingStatus(env, code),
   });
 

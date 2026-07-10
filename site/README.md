@@ -15,7 +15,7 @@ Built with [Astro](https://astro.build) and deploys to
 | `/post/:id` | Deep-link fallback for `patreontv://post/<id>` shares |
 | `/creator/:id` | Deep-link fallback for `patreontv://creator/<id>` shares |
 | `/link/:code` | Device-link sign-in portal (pair Apple TV with Patreon) |
-| `/api/pairing/*` | Pairing API — create code (POST), status (GET), claim session (POST), complete OAuth |
+| `/api/pairing/*` | Pairing API — create code (POST), status (GET), claim session (POST), complete (POST) |
 | `/api/health` | JSON health endpoint for uptime monitoring |
 | `/.well-known/apple-app-site-association` | Universal Links manifest (needs Team ID) |
 
@@ -46,18 +46,11 @@ npm run dev:pairing
 This binds `0.0.0.0:8788` and sets `PAIRING_PUBLIC_ORIGIN` to e.g.
 `http://192.168.1.148:8788`. Rebuild/run the tvOS app in Xcode (DEBUG).
 
-On your iPhone (same Wi‑Fi): scan the QR on the TV, or open the link shown.
-Use **Having trouble? Connect manually** to paste your `session_id` cookie.
+Open the link on a **computer** (the `session_id` cookie is HttpOnly and can't
+be read on a phone): sign in at patreon.com, copy the `session_id` cookie from
+the browser's developer tools, and paste it on the link page.
 
 Override the detected IP: `PAIRING_LAN_IP=10.0.0.5 npm run dev:pairing`
-
-For fully automated OAuth, add to `site/.dev.vars` (see script output):
-
-```
-PATREON_CLIENT_ID=...
-PATREON_CLIENT_SECRET=...
-PATREON_REDIRECT_URI=http://<your-lan-ip>:8788/api/pairing/oauth/callback
-```
 
 ## Checks & tests
 
@@ -85,8 +78,6 @@ npm test                 # vitest — pairing state machine, sealing, rate limit
 5. Set the pairing secrets (Settings → Environment variables):
    - `PAIRING_SESSION_KEY` — **required**: `openssl rand -base64 32`. Seals
      Patreon session cookies at rest in KV.
-   - `PATREON_CLIENT_ID` / `PATREON_CLIENT_SECRET` / `PATREON_REDIRECT_URI`
-     for the OAuth-assisted flow.
    - Bind a KV namespace to `PAIRING` (Settings → Functions → KV bindings).
 6. Recommended: add a Cloudflare WAF rate-limiting rule on
    `/api/pairing/*` — the in-app KV limiter is best-effort only.
