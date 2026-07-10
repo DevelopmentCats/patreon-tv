@@ -17,7 +17,9 @@
 //
 
 import Foundation
-import TVServices
+// TVServices' TVTopShelfContent isn't marked Sendable yet; @preconcurrency
+// keeps the async override warning-free under strict concurrency.
+@preconcurrency import TVServices
 
 final class ContentProvider: TVTopShelfContentProvider {
 

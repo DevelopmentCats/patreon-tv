@@ -11,21 +11,21 @@ import Foundation
 // MARK: - JSON:API envelope types
 
 /// A JSON:API document containing a single primary resource plus its includes.
-struct SingleResource<T: JSONAPIResource>: Decodable {
+struct SingleResource<T: JSONAPIResource>: Decodable, Sendable {
     let data: T
     let included: [Included]?
     let links: Links?
 }
 
 /// A JSON:API document containing an array of primary resources.
-struct MultiResource<T: JSONAPIResource>: Decodable {
+struct MultiResource<T: JSONAPIResource>: Decodable, Sendable {
     let data: [T]
     let included: [Included]?
     let links: Links?
 }
 
 /// A paged list — same as MultiResource but exposes cursor.
-struct Page<T: JSONAPIResource>: Decodable {
+struct Page<T: JSONAPIResource>: Decodable, Sendable {
     let data: [T]
     let included: [Included]?
     let meta: PageMeta?
@@ -34,20 +34,20 @@ struct Page<T: JSONAPIResource>: Decodable {
     var nextCursor: String? { meta?.pagination?.cursors?.next }
 }
 
-struct PageMeta: Decodable {
+struct PageMeta: Decodable, Sendable {
     let pagination: PageCursors?
 }
 
-struct PageCursors: Decodable {
+struct PageCursors: Decodable, Sendable {
     let cursors: Cursors?
     let total: Int?
 }
 
-struct Cursors: Decodable {
+struct Cursors: Decodable, Sendable {
     let next: String?
 }
 
-struct Links: Decodable {
+struct Links: Decodable, Sendable {
     let next: String?
     let previous: String?
     let first: String?
@@ -55,7 +55,9 @@ struct Links: Decodable {
 }
 
 /// Any resource can be a JSON:API resource — has a type + id.
-protocol JSONAPIResource: Decodable, Identifiable {
+/// Sendable so full documents can cross actor boundaries (they're decoded off
+/// the main actor and returned to @MainActor callers).
+protocol JSONAPIResource: Decodable, Identifiable, Sendable {
     var id: String { get }
     var type: String { get }
 }

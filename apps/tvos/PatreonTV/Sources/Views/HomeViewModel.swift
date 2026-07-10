@@ -134,7 +134,7 @@ final class HomeViewModel {
         if !emptyIDs.isEmpty {
             let pages = await withTaskGroup(of: (String, Page<Post>?).self) { group in
                 for cid in emptyIDs {
-                    group.addTask { @MainActor in
+                    group.addTask {
                         let page = try? await PatreonClient.shared.campaignPosts(campaignID: cid, limit: 12)
                         return (cid, page)
                     }
