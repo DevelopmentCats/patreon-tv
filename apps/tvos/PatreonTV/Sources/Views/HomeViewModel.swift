@@ -50,21 +50,6 @@ final class HomeViewModel {
     /// Campaign ID → Campaign, merged from feed includes and memberships.
     private var campaignsByID: [String: Campaign] = [:]
 
-    /// The hero band's default when no card is focused yet.
-    var heroFallback: FocusedPoster? {
-        guard let post = homeFeed.first else { return nil }
-        let campaign = campaign(for: post)
-        return FocusedPoster(
-            postID: post.id,
-            title: post.attributes.title,
-            heroImageURL: post.attributes.posterImageURL,
-            creatorName: campaign?.attributes.name,
-            campaignID: campaign?.id,
-            publishedAt: post.attributes.publishedAt,
-            isPaid: post.attributes.isPaid ?? false
-        )
-    }
-
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Home")
 
     func load() async {
@@ -78,7 +63,6 @@ final class HomeViewModel {
             let page = try await PatreonClient.shared.homeFeed(limit: 30)
             homeFeed = page.data
             indexCampaigns(from: page.included ?? [])
-            rebuildContinueWatching()
             writeTopShelfSnapshot()
             state = homeFeed.isEmpty ? .empty : .loaded
         } catch {
@@ -87,9 +71,13 @@ final class HomeViewModel {
             return
         }
 
-        // Creator rows load after the first paint — the hero and merged shelf
-        // are already interactive while memberships and per-creator pages come in.
-        await buildCreatorRows()
+        // Creator rows and Continue Watching both load after the first paint
+        // (the hero and merged shelf are already interactive). Run them
+        // concurrently so resolving off-feed Continue Watching posts doesn't
+        // wait on the per-creator pages.
+        async let rows: Void = buildCreatorRows()
+        async let continueWatch: Void = rebuildContinueWatching()
+        _ = await (rows, continueWatch)
     }
 
     // MARK: - Per-creator rows
@@ -208,12 +196,51 @@ final class HomeViewModel {
         }
     }
 
-    /// Rebuild the Continue Watching shelf from the persisted progress store,
-    /// keeping only posts we currently have data for.
-    private func rebuildContinueWatching() {
-        let byID = Dictionary(uniqueKeysWithValues: homeFeed.map { ($0.id, $0) })
-        let inProgress = PlaybackProgressStore.shared.continueWatching(matching: byID.keys)
-        continueWatching = inProgress.compactMap { byID[$0.postID] }
+    /// Rebuild the Continue Watching shelf from the persisted progress store.
+    /// Older in-progress posts often aren't in the recent feed, so resolve any
+    /// we don't already hold by fetching them individually — otherwise a
+    /// half-watched but not-recent video silently vanishes from the shelf.
+    private func rebuildContinueWatching() async {
+        let entries = PlaybackProgressStore.shared.inProgress()
+        guard !entries.isEmpty else {
+            continueWatching = []
+            return
+        }
+
+        // Start from posts we already hold (feed + creator rows).
+        var byID = Dictionary(homeFeed.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for row in creatorRows {
+            for post in row.posts where byID[post.id] == nil { byID[post.id] = post }
+        }
+
+        // Fetch the ones we're missing, concurrently.
+        let missing = entries.map(\.postID).filter { byID[$0] == nil }
+        if !missing.isEmpty {
+            let docs = await withTaskGroup(of: SingleResource<Post>?.self) { group in
+                for id in missing {
+                    group.addTask { try? await PatreonClient.shared.post(id: id) }
+                }
+                var out: [SingleResource<Post>] = []
+                for await doc in group { if let doc { out.append(doc) } }
+                return out
+            }
+            for doc in docs {
+                byID[doc.data.id] = doc.data
+                // Keep the creator lookup populated so the card shows its name
+                // and the NSFW gate can evaluate off-feed posts. Prefer a
+                // fuller campaign we already hold (feed includes carry is_nsfw);
+                // don't clobber it with the post fetch's leaner copy.
+                for inc in doc.included ?? [] {
+                    if case .campaign(let campaign) = inc {
+                        let resolved = campaignsByID[campaign.id] ?? campaign
+                        campaignsByID[campaign.id] = resolved
+                        campaignsByPostID[doc.data.id] = resolved
+                    }
+                }
+            }
+        }
+
+        continueWatching = entries.compactMap { byID[$0.postID] }
     }
 
     /// Persist a top-shelf snapshot so the Top Shelf extension can show recent

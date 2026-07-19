@@ -15,7 +15,6 @@ struct HomeView: View {
 
     @State private var vm = HomeViewModel()
     @State private var prefs = ContentPreferences.shared
-    @Environment(DeepLinkRouter.self) private var router
 
     /// Applies the mature-content gate to a shelf's posts based on each post's
     /// owning campaign. Keeps posts whose campaign is unknown (assumed safe).
@@ -24,15 +23,22 @@ struct HomeView: View {
         return posts.filter { vm.campaign(for: $0)?.attributes.isNSFW != true }
     }
 
-    /// The hero fallback, suppressed when the top post is from a hidden NSFW
-    /// creator so mature art doesn't flash before the user focuses a card.
-    private var heroFallback: FocusedPoster? {
-        guard let fb = vm.heroFallback else { return nil }
-        if prefs.showMatureContent { return fb }
-        if let first = vm.homeFeed.first, vm.campaign(for: first)?.attributes.isNSFW == true {
-            return nil
+    /// Slides for the featured carousel: the newest visible posts, mapped to
+    /// the lightweight FocusedPoster the hero renders. NSFW gating is inherited
+    /// from `visible`, so mature art never appears while the toggle is off.
+    private var featuredItems: [FocusedPoster] {
+        visible(vm.homeFeed).prefix(6).map { post in
+            let campaign = vm.campaign(for: post)
+            return FocusedPoster(
+                postID: post.id,
+                title: post.attributes.title,
+                heroImageURL: post.attributes.posterImageURL,
+                creatorName: campaign?.attributes.name,
+                campaignID: campaign?.id,
+                publishedAt: post.attributes.publishedAt,
+                isPaid: post.attributes.isPaid ?? false
+            )
         }
-        return fb
     }
 
     var body: some View {
@@ -66,34 +72,14 @@ struct HomeView: View {
         // children of a LazyVStack. Shelves inside stay lazy via LazyHStack.
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 40) {
-                // Hero + featured Play button form ONE full-width focus
-                // section. Directional focus only moves to an *adjacent*
-                // focusable frame (WWDC21 "Direct and reflect focus in
-                // SwiftUI"), so without this, swiping up from any shelf card
-                // not sitting directly above the little Play pill found no
-                // target and focus was trapped in the shelf. With the section,
-                // the whole hero band accepts focus, delivers it to the Play
-                // button, and one more swipe up reveals the tab bar.
-                VStack(alignment: .leading, spacing: 40) {
-                    HeroBand(fallback: heroFallback)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if let featured = heroFallback {
-                        Button {
-                            router.pending = .post(id: featured.postID, autoplay: true)
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                                .font(.title3.weight(.semibold))
-                                .padding(.horizontal, 44)
-                                .padding(.vertical, 16)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(PatreonColors.brand)
-                        .padding(.leading, 60)
-                    }
+                // The featured carousel is a full-width focus section pinned
+                // above the shelves. Because it always holds a focusable slide,
+                // swiping up from any shelf reliably lands here, and one more
+                // swipe up reveals the tab bar — no dependence on a conditional
+                // Play pill or TabView's finicky top-edge escape.
+                if !featuredItems.isEmpty {
+                    FeaturedHero(items: featuredItems)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .focusSection()
 
                 if !continueWatching.isEmpty {
                     Shelf(

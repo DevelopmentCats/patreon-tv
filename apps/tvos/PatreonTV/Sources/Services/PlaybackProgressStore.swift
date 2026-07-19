@@ -62,6 +62,18 @@ final class PlaybackProgressStore {
             .sorted { $0.lastUpdated > $1.lastUpdated }
     }
 
+    /// Every meaningfully-started, unfinished post, most-recent first —
+    /// independent of the current feed. The caller resolves each postID to a
+    /// Post (fetching if it isn't already loaded), so older off-feed videos
+    /// still surface in Continue Watching.
+    func inProgress(limit: Int = 15) -> [PlaybackProgress] {
+        records.values
+            .filter { !$0.isFinished && $0.positionSeconds > 5 }
+            .sorted { $0.lastUpdated > $1.lastUpdated }
+            .prefix(limit)
+            .map { $0 }
+    }
+
     func clear(postID: String) {
         records.removeValue(forKey: postID)
         save()

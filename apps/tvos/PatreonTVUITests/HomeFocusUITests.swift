@@ -4,7 +4,7 @@
 //
 //  Reproduces the reported Home focus trap with real Siri Remote presses:
 //  from a card in the first shelf, swiping up must eventually reach the top
-//  tab bar (via the hero's Play button). Runs fully offline against
+//  tab bar (via the featured hero carousel). Runs fully offline against
 //  GalleryMockURLProtocol (GALLERY_MOCK=1).
 //
 
@@ -32,23 +32,25 @@ final class HomeFocusUITests: XCTestCase {
         }
     }
 
+    /// Home is loaded once a featured hero slide exists.
+    private func waitForHome(_ app: XCUIApplication) {
+        let slide = app.buttons.matching(identifier: "featured-slide").firstMatch
+        XCTAssertTrue(slide.waitForExistence(timeout: 20), "Home never loaded (mock feed missing?)")
+        sleep(2)   // let initial focus settle
+    }
+
     /// The user's exact repro: land on Home, move down into the shelves,
-    /// move right a few cards (so we're NOT directly above the Play pill),
+    /// move right a few cards (so we're NOT directly above the leading edge),
     /// then swipe up repeatedly. Focus must reach the tab bar.
     func test_up_from_mid_shelf_card_reaches_tab_bar() {
         let app = launchHome()
-
-        // Home is loaded when the hero's Play button exists.
-        let play = app.buttons["Play"].firstMatch
-        XCTAssertTrue(play.waitForExistence(timeout: 20), "Home never loaded (mock feed missing?)")
-        // Let initial focus settle.
-        sleep(2)
+        waitForHome(app)
 
         // Down into the first shelf (Continue Watching), then right two cards.
         press(.down, times: 2)
         press(.right, times: 2)
 
-        // Now try to come back up: shelf → hero section → tab bar.
+        // Now try to come back up: shelf → featured hero → tab bar.
         // Generous press budget; the assertion is what matters.
         let homeTab = app.buttons["Home"].firstMatch
         var reachedTabBar = false
@@ -69,21 +71,20 @@ final class HomeFocusUITests: XCTestCase {
         )
     }
 
-    /// Sanity check the fix's stepping stone: up from the FIRST card of the
-    /// first shelf must land on the hero's Play button (full-width
-    /// focusSection catches the swipe even though the pill sits at the
-    /// leading edge).
-    func test_up_from_first_shelf_lands_on_play_button() {
+    /// Sanity check the stepping stone: up from a card in the first shelf must
+    /// land on the full-width featured hero, which then yields to the tab bar.
+    func test_up_from_first_shelf_lands_on_featured_hero() {
         let app = launchHome()
-
-        let play = app.buttons["Play"].firstMatch
-        XCTAssertTrue(play.waitForExistence(timeout: 20))
-        sleep(2)
+        waitForHome(app)
 
         press(.down, times: 2)
-        press(.right, times: 3)   // well past the pill's x-range
+        press(.right, times: 3)
         press(.up)
 
-        XCTAssertTrue(play.hasFocus, "Up from a mid-shelf card should land on the hero Play button")
+        let heroFocused = app.buttons
+            .matching(identifier: "featured-slide")
+            .matching(NSPredicate(format: "hasFocus == true"))
+            .firstMatch
+        XCTAssertTrue(heroFocused.exists, "Up from a shelf card should land on the featured hero")
     }
 }
