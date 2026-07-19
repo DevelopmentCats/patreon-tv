@@ -16,6 +16,7 @@ struct CreatorView: View {
     var membership: Membership?
 
     @State private var vm = CreatorViewModel()
+    @FocusState private var heroFocused: Bool
 
     var body: some View {
         Group {
@@ -41,10 +42,18 @@ struct CreatorView: View {
             // children, so the posts grid under the tall hero wouldn't exist and
             // focus couldn't move down into it. The grid itself stays LazyVGrid.
             VStack(alignment: .leading, spacing: 40) {
-                // No .focusSection() on the (non-focusable) hero — it would
-                // intercept "up" and dead-end. Focus flows up to the Posts header.
-                hero
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // The hero is a focusable (but inert) target so "up" from the
+                // Posts header has somewhere to go — otherwise focus dead-ends
+                // at the header and the ScrollView never scrolls the hero back
+                // into view. Selecting it does nothing; it's purely the anchor
+                // that lets the user scroll back to the top.
+                Button(action: {}) {
+                    hero(focused: heroFocused)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .focused($heroFocused)
+                .accessibilityIdentifier("creator-hero")
 
                 if let summary = vm.campaign?.attributes.summary, !summary.isEmpty {
                     aboutSection(summary: summary)
@@ -65,12 +74,13 @@ struct CreatorView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
             Spacer()
-            // Destination-style link is deliberate here: the payload (the
-            // already-loaded posts array) isn't Hashable/Codable, so it can't
-            // be a DeepLinkDestination value. This push is never mixed with
-            // programmatic path writes, so it's safe.
+            // Destination-style link is deliberate here: the view model isn't
+            // Hashable/Codable, so it can't be a DeepLinkDestination value. This
+            // push is never mixed with programmatic path writes, so it's safe.
+            // Passing the shared VM (not a snapshot) lets search cover the whole
+            // catalog as pages stream in.
             NavigationLink {
-                CreatorPostSearchView(posts: vm.posts, campaign: vm.campaign)
+                CreatorPostSearchView(vm: vm, campaignID: campaignID)
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.title3.weight(.semibold))
@@ -104,7 +114,7 @@ struct CreatorView: View {
     }
 
     @ViewBuilder
-    private var hero: some View {
+    private func hero(focused: Bool) -> some View {
         ZStack(alignment: .bottomLeading) {
             heroImage
                 .frame(height: 500)
@@ -141,6 +151,14 @@ struct CreatorView: View {
             .padding(.horizontal, 60)
             .padding(.bottom, 60)
         }
+        .overlay {
+            // Inset ring (not hugging the screen edge) so the inert hero still
+            // reads as focused when the user swipes up to it.
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .inset(by: 6)
+                .strokeBorder(.white.opacity(focused ? 0.6 : 0), lineWidth: 3)
+        }
+        .animation(.easeInOut(duration: 0.2), value: focused)
     }
 
     @ViewBuilder
@@ -196,12 +214,14 @@ struct CreatorView: View {
     }
 }
 
-/// A pushed search screen for one creator's already-loaded posts. Local filter
-/// (Patreon's campaign-posts API has no server-side search). Press Menu to go back.
+/// A pushed search screen over one creator's *entire* catalog. On appear it
+/// pages the remaining posts into the shared view model (Patreon's campaign-posts
+/// API has no server-side text search, so we fetch all and filter locally).
+/// Press Menu to go back.
 private struct CreatorPostSearchView: View {
 
-    let posts: [Post]
-    let campaign: Campaign?
+    let vm: CreatorViewModel
+    let campaignID: String
 
     @State private var query: String = ""
 
@@ -209,8 +229,8 @@ private struct CreatorPostSearchView: View {
 
     private var results: [Post] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !q.isEmpty else { return posts }
-        return posts.filter { post in
+        guard !q.isEmpty else { return vm.posts }
+        return vm.posts.filter { post in
             (post.attributes.title?.lowercased().contains(q) ?? false)
                 || (post.attributes.teaser?.lowercased().contains(q) ?? false)
         }
@@ -219,7 +239,7 @@ private struct CreatorPostSearchView: View {
     var body: some View {
         ScrollView {
             if results.isEmpty {
-                Text(query.isEmpty ? "Type to search" : "No posts match \"\(query)\"")
+                Text(emptyMessage)
                     .font(.title3)
                     .foregroundStyle(PatreonColors.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 400)
@@ -227,17 +247,29 @@ private struct CreatorPostSearchView: View {
                 LazyVGrid(columns: columns, spacing: 40) {
                     ForEach(results) { post in
                         NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
-                            PostCard(post: post, campaign: campaign)
+                            PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)
                     }
                 }
                 .padding(60)
+
+                if vm.isLoadingAll {
+                    ProgressView("Loading all posts…")
+                        .padding(.bottom, 40)
+                }
             }
         }
         .scrollClipDisabled()
-        .searchable(text: $query, prompt: "Search \(campaign?.attributes.name ?? "posts")")
+        .searchable(text: $query, prompt: "Search \(vm.campaign?.attributes.name ?? "posts")")
         .background(PatreonColors.background.ignoresSafeArea())
+        // Pull the rest of the catalog so search isn't limited to loaded pages.
+        .task { await vm.loadAllRemaining(campaignID: campaignID) }
+    }
+
+    private var emptyMessage: String {
+        if query.isEmpty { return vm.isLoadingAll ? "Loading posts…" : "Type to search" }
+        return vm.isLoadingAll ? "Searching…" : "No posts match \"\(query)\""
     }
 }
 
@@ -250,8 +282,12 @@ final class CreatorViewModel {
     private(set) var state: ViewState = .idle
     private(set) var campaign: Campaign?
     private(set) var posts: [Post] = []
+    private(set) var isLoadingAll = false
     private var nextCursor: String?
     private var isFetchingMore = false
+
+    /// True while more pages remain to fetch.
+    var hasMore: Bool { nextCursor != nil }
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Creator")
 
@@ -285,11 +321,46 @@ final class CreatorViewModel {
         defer { isFetchingMore = false }
         do {
             let page = try await PatreonClient.shared.campaignPosts(campaignID: campaignID, cursor: cursor, limit: 30)
-            posts.append(contentsOf: page.data)
+            append(page.data)
             nextCursor = page.nextCursor
         } catch {
             log.error("Creator load-more failed: \(String(describing: error))")
         }
+    }
+
+    /// Page through every remaining post so search covers the whole catalog,
+    /// not just the pages the grid happened to scroll into view. Streams results
+    /// in as it goes (the search view observes `posts` live).
+    func loadAllRemaining(campaignID: String) async {
+        guard !isLoadingAll else { return }
+        isLoadingAll = true
+        defer { isLoadingAll = false }
+        // Bounded so a pathologically prolific creator can't loop forever; 50
+        // pages × 60 = 3000 posts is far beyond any real catalog.
+        var pages = 0
+        while let cursor = nextCursor, pages < 50, !Task.isCancelled {
+            pages += 1
+            do {
+                let page = try await PatreonClient.shared.campaignPosts(
+                    campaignID: campaignID, cursor: cursor, limit: 60
+                )
+                append(page.data)
+                nextCursor = page.nextCursor
+            } catch is CancellationError {
+                return   // left the search screen — expected, not an error
+            } catch {
+                // URLError.cancelled (-999) is the same benign task teardown.
+                if (error as? URLError)?.code == .cancelled { return }
+                log.error("Creator load-all failed: \(String(describing: error))")
+                return
+            }
+        }
+    }
+
+    /// Append new posts, skipping any we already have (pages can overlap).
+    private func append(_ new: [Post]) {
+        let known = Set(posts.map(\.id))
+        posts.append(contentsOf: new.filter { !known.contains($0.id) })
     }
 }
 

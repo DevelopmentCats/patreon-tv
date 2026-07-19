@@ -31,7 +31,19 @@ struct Page<T: JSONAPIResource>: Decodable, Sendable {
     let meta: PageMeta?
     let links: Links?
 
-    var nextCursor: String? { meta?.pagination?.cursors?.next }
+    /// Prefer the explicit meta cursor; fall back to the `page[cursor]` embedded
+    /// in `links.next`. Patreon's internal endpoints are inconsistent — some
+    /// (e.g. /stream) populate `meta.pagination.cursors.next`, others (e.g.
+    /// /campaigns/{id}/posts) only give `links.next` — so without this fallback
+    /// those endpoints silently stop paginating after the first page.
+    var nextCursor: String? {
+        if let cursor = meta?.pagination?.cursors?.next { return cursor }
+        guard let next = links?.next,
+              let components = URLComponents(string: next),
+              let cursor = components.queryItems?.first(where: { $0.name == "page[cursor]" })?.value
+        else { return nil }
+        return cursor
+    }
 }
 
 struct PageMeta: Decodable, Sendable {

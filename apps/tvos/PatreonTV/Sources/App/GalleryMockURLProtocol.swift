@@ -53,6 +53,11 @@ enum GalleryMockData {
         case path.contains("/campaigns/") && path.hasSuffix("/posts"):
             let campaignID = path.split(separator: "/").dropLast().last.map(String.init) ?? "c1"
             json = campaignPosts(campaignID: campaignID)
+        case path.contains("/campaigns/"):
+            // Bare single-campaign fetch (the creator page's header data).
+            let id = path.split(separator: "/").last.map(String.init) ?? "c1"
+            let name = id == "c1" ? "Astro Lab" : "Kitchen Physics"
+            json = #"{ "data": \#(campaignJSON(id, name: name)) }"#
         case path.contains("/posts/"):
             json = singlePost(id: path.split(separator: "/").last.map(String.init) ?? "p-c1-1")
         default:

@@ -233,4 +233,33 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(page.nextCursor, "cursor-xyz")
         XCTAssertEqual(page.meta?.pagination?.total, 42)
     }
+
+    /// Campaign-posts style page — no meta cursor, only `links.next` carrying
+    /// the cursor. nextCursor must fall back to it or pagination silently stops.
+    func test_decode_page_cursor_fallback_from_links_next() throws {
+        let json = """
+        {
+          "data": [
+            { "type": "post", "id": "10", "attributes": { "title": "Ten", "post_type": "video_external_file" } }
+          ],
+          "links": {
+            "next": "https://www.patreon.com/api/campaigns/123/posts?page%5Bcount%5D=30&page%5Bcursor%5D=abc123def"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let page = try JSONAPIDecoder.decode(Page<Post>.self, from: json)
+        XCTAssertNil(page.meta?.pagination?.cursors?.next, "this fixture has no meta cursor")
+        XCTAssertEqual(page.nextCursor, "abc123def", "should recover the cursor from links.next")
+    }
+
+    /// Last page: no meta cursor and no links.next → nextCursor is nil (end).
+    func test_decode_page_no_cursor_is_end() throws {
+        let json = """
+        { "data": [ { "type": "post", "id": "99", "attributes": { "title": "Last" } } ] }
+        """.data(using: .utf8)!
+
+        let page = try JSONAPIDecoder.decode(Page<Post>.self, from: json)
+        XCTAssertNil(page.nextCursor)
+    }
 }

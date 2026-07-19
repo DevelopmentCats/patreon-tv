@@ -88,3 +88,53 @@ final class HomeFocusUITests: XCTestCase {
         XCTAssertTrue(heroFocused.exists, "Up from a shelf card should land on the featured hero")
     }
 }
+
+/// The creator page had the same trap: a tall non-focusable hero above the
+/// posts grid meant "up" from the grid dead-ended at the Posts header and the
+/// hero could never be scrolled back into view. The hero is now a focusable
+/// (inert) anchor, so up from the grid must reach it.
+final class CreatorFocusUITests: XCTestCase {
+
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    private func press(_ button: XCUIRemote.Button, times: Int = 1) {
+        for _ in 0..<times {
+            XCUIRemote.shared.press(button)
+            usleep(400_000)
+        }
+    }
+
+    func test_up_from_posts_grid_reaches_hero() {
+        let app = XCUIApplication()
+        app.launchEnvironment["GALLERY_SCREEN"] = "creator"
+        app.launchEnvironment["GALLERY_MOCK"] = "1"
+        app.launch()
+
+        let hero = app.buttons.matching(identifier: "creator-hero").firstMatch
+        XCTAssertTrue(hero.waitForExistence(timeout: 20), "Creator page never loaded")
+        sleep(2)
+
+        // Down into the posts grid and across a column, then come back up.
+        press(.down, times: 2)
+        press(.right, times: 1)
+
+        var reachedHero = false
+        for _ in 0..<8 {
+            press(.up)
+            if hero.hasFocus {
+                reachedHero = true
+                break
+            }
+        }
+
+        XCTAssertTrue(
+            reachedHero,
+            """
+            Up from the posts grid never reached the creator hero. Focused: \
+            \(app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch.debugDescription)
+            """
+        )
+    }
+}
