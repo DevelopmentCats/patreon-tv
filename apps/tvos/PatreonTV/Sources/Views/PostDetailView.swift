@@ -39,6 +39,11 @@ struct PostDetailView: View {
     /// `playbackErrorMessage` in the cover's `onDismiss` so the alert never
     /// tries to present on top of the (still-dismissing) full-screen cover.
     @State private var pendingPlaybackError: String?
+    /// Drives initial focus onto the Play button rather than the first
+    /// focusable (the creator-name link), which felt arbitrary.
+    @FocusState private var focusedControl: FocusTarget?
+
+    private enum FocusTarget: Hashable { case play }
     @State private var isLoading = true
     @State private var playbackSource: MediaPlaybackSource?
     @State private var isPreparingPlayback = false
@@ -112,7 +117,7 @@ struct PostDetailView: View {
                 source: source,
                 post: post,
                 campaign: campaign,
-                resumeSeconds: PlaybackProgressStore.shared.progress(for: currentPostID)?.positionSeconds,
+                resumeSeconds: resumeProgress?.positionSeconds,
                 onPlaybackFailure: { message in
                     presentPlaybackError(message)
                 },
@@ -125,7 +130,7 @@ struct PostDetailView: View {
                 source: source,
                 title: post?.attributes.title ?? "",
                 postID: currentPostID,
-                resumeSeconds: PlaybackProgressStore.shared.progress(for: currentPostID)?.positionSeconds,
+                resumeSeconds: resumeProgress?.positionSeconds,
                 post: post,
                 campaign: campaign,
                 duration: videoDuration,
@@ -156,6 +161,7 @@ struct PostDetailView: View {
             }
         }
         .scrollClipDisabled()
+        .defaultFocus($focusedControl, .play)
     }
 
     @ViewBuilder
@@ -302,6 +308,7 @@ struct PostDetailView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(PatreonColors.brand)
                     .disabled(isPreparingPlayback)
+                    .focused($focusedControl, equals: .play)
 
                     if resumeProgress != nil {
                         Button {

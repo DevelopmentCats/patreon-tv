@@ -21,6 +21,7 @@ struct UpNextOverlayView: View {
     let onDismiss: () -> Void
 
     @State private var remaining: Int = .max
+    @Namespace private var focusNamespace
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -37,6 +38,8 @@ struct UpNextOverlayView: View {
                 .padding(.trailing, 80)
                 .padding(.bottom, 80)
         }
+        // Claim focus from the (ended) player so the buttons are usable.
+        .focusScope(focusNamespace)
         .task {
             guard let total = countdownSeconds else { return }
             remaining = total
@@ -78,6 +81,7 @@ struct UpNextOverlayView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(PatreonColors.brand)
+                    .prefersDefaultFocus(in: focusNamespace)
 
                     Button("Dismiss", action: onDismiss)
                         .buttonStyle(.bordered)

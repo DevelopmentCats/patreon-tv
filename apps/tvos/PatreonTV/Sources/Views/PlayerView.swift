@@ -226,11 +226,22 @@ final class PlayerHostViewController: UIViewController {
         // in the query string, so a plain asset streams them directly and
         // AVFoundation handles its own efficient byte-range fetching.
         //
-        // Deliberately NO custom headers here: attaching the Patreon session
-        // cookie would leak the full account credential to third-party CDNs
-        // (stream.mux.com) for zero benefit.
+        // Mux enforces a *playback restriction* on these assets: a valid,
+        // unexpired signed token still 403s unless the request carries a
+        // patreon.com Referer/Origin and a browser User-Agent (the old WebView
+        // player sent these automatically; native AVPlayer sends none, which
+        // silently broke video playback). We still send NO cookie — the session
+        // credential must never reach a third-party CDN.
         log.info("Direct playback for \(source.url.absoluteString.prefix(120))")
-        let asset = AVURLAsset(url: source.url)
+        let playbackHeaders = [
+            "Referer": "https://www.patreon.com/",
+            "Origin": "https://www.patreon.com",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        ]
+        let asset = AVURLAsset(
+            url: source.url,
+            options: ["AVURLAssetHTTPHeaderFieldsKey": playbackHeaders]
+        )
 
         let item = AVPlayerItem(asset: asset)
         item.externalMetadata = makeExternalMetadata(title: title, post: post, campaign: campaign)

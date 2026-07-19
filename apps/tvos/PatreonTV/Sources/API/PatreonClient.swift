@@ -232,7 +232,7 @@ final class PatreonClient {
                 URLQueryItem(name: "include", value: "campaign,user,attachments_media,post_file,audio,media,images"),
                 URLQueryItem(name: "fields[post]", value: PostFields.full),
                 URLQueryItem(name: "fields[media]", value: MediaFields.full),
-                URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url"),
+                URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url,is_nsfw"),
             ])
         return try await fetch(SingleResource<Post>.self, from: url)
     }
